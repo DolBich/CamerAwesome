@@ -25,6 +25,10 @@ import com.apparence.camerawesome.utils.isMultiCamSupported
 import io.flutter.plugin.common.EventChannel
 import io.flutter.view.TextureRegistry
 import java.util.concurrent.Executor
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import android.hardware.camera2.CaptureRequest
 
 /// Hold the settings of the camera and use cases in this class and
 /// call updateLifecycle() to refresh the state
@@ -52,6 +56,8 @@ data class CameraXState(
     var mirrorFrontCamera: Boolean = false,
     val videoRecordingQuality: VideoRecordingQuality?,
     val videoOptions: AndroidVideoOptions?,
+
+    var manualExposureTimeNs: Long? = null
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -190,6 +196,9 @@ data class CameraXState(
             )
             // Only set flash to the main camera (the first one)
             concurrentCamera!!.cameras.first().cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
+
+            /// Applying manual exposure time for each camera if needed
+            concurrentCamera!!.cameras.forEach { applyManualExposureIfNeeded(it) }
         } else {
             val useCaseGroupBuilder = UseCaseGroup.Builder()
             // Handle single camera
@@ -268,6 +277,9 @@ data class CameraXState(
                 useCaseGroupBuilder.build(),
             )
             previewCamera!!.cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
+
+            /// Applying manual exposure time if needed
+            applyManualExposureIfNeeded(previewCamera!!)
         }
     }
 
@@ -336,6 +348,20 @@ data class CameraXState(
             }
         }
     }
+
+    @ExperimentalCamera2Interop
+    private fun applyManualExposureIfNeeded(camera: Camera) {
+        manualExposureTimeNs?.let { exposureTime ->
+            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+            camera2Control.setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+                    .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
+                    .build()
+            )
+        }
+    }
+
 
     fun setLinearZoom(zoom: Float) {
         mainCameraControl.setLinearZoom(zoom)

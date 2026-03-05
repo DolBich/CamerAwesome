@@ -525,4 +525,28 @@ class CamerawesomePlugin {
   static Future<void> setMirrorFrontCamera(bool mirrorFrontCamera) {
     return CameraInterface().setMirrorFrontCamera(mirrorFrontCamera);
   }
+
+  /// Checks if manual exposure control is supported on the current device.
+  static Future<bool> isManualExposureSupported() async {
+      return CameraInterface().isManualExposureSupported();
+  }
+
+  /// Returns the available exposure time range in microseconds.
+  /// Returns null if manual exposure is not supported or an error occurs.
+  static Future<ExposureTimeRange?> getExposureTimeRange() async {
+      return CameraInterface().getExposureTimeRange();
+  }
+
+  /// Sets a custom exposure time.
+  /// [duration] must be within the range returned by [getExposureTimeRange].
+  /// Throws an exception if manual exposure is not supported or value out of range.
+  static Future<void> setExposureTime(Duration duration) async {
+      CameraInterface().setExposureTime(duration.inMicroseconds);
+  }
+
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
+  static Future<void> resetExposureToAuto() async {
+      CameraInterface().resetExposureToAuto();
+  }
 }

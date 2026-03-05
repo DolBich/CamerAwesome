@@ -48,7 +48,11 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.math.roundToInt
-
+import android.hardware.camera2.CaptureRequest
+import android.util.Range
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
 
 enum class CaptureModes {
     PHOTO, VIDEO, PREVIEW, ANALYSIS_ONLY,
@@ -117,6 +121,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     }
 
 
+    private fun getCurrentCamera(): androidx.camera.core.Camera? {
+        return cameraState.concurrentCamera?.cameras?.firstOrNull() ?: cameraState.previewCamera
+    }
+
     @SuppressLint("RestrictedApi")
     override fun setupCamera(
         sensors: List<PigeonSensor>,
@@ -145,7 +153,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val cameraProvider = getCameraProvider()
 
         val mode = CaptureModes.valueOf(captureMode)
-        cameraState = CameraXState(cameraProvider = cameraProvider,
+        cameraState = CameraXState(
+            cameraProvider = cameraProvider,
             textureEntries = sensors.mapIndexed { index: Int, pigeonSensor: PigeonSensor ->
                 (pigeonSensor.deviceId
                     ?: index.toString()) to textureRegistry!!.createSurfaceTexture()
@@ -382,7 +391,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             ImageCapture.OutputFileOptions.Builder(imageFile).setMetadata(metadata).build()
 //        for (imageCapture in cameraState.imageCaptures) {
         imageCapture.targetRotation = orientationStreamListener!!.surfaceOrientation
-        imageCapture.takePicture(outputFileOptions,
+        imageCapture.takePicture(
+            outputFileOptions,
             ContextCompat.getMainExecutor(activity!!),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
@@ -513,10 +523,12 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
                     }
                 }
                 videoCapture.targetRotation = orientationStreamListener!!.surfaceOrientation
-                cameraState.recordings!!.add(videoCapture.output.prepareRecording(
-                    activity!!, FileOutputOptions.Builder(File(paths[index]!!)).build()
-                ).apply { if (cameraState.enableAudioRecording && !ignoreAudio) withAudioEnabled() }
-                    .start(cameraState.executor(activity!!), recordingListener))
+                cameraState.recordings!!.add(
+                    videoCapture.output.prepareRecording(
+                        activity!!, FileOutputOptions.Builder(File(paths[index]!!)).build()
+                    )
+                        .apply { if (cameraState.enableAudioRecording && !ignoreAudio) withAudioEnabled() }
+                        .start(cameraState.executor(activity!!), recordingListener))
             }
             callback(Result.success(Unit))
         }
@@ -608,6 +620,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     override fun setSensor(sensors: List<PigeonSensor>) {
         cameraState.apply {
             this.sensors = sensors
+            this.manualExposureTimeNs = null
             // TODO Make below variables parameters
             // Also reset flash mode and aspect ratio
             this.flashMode = FlashMode.NONE
@@ -760,7 +773,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             else -> PreviewSize(res.width.toDouble(), res.height.toDouble())
         }
 
-        Log.d("CameraX", "Preview size: width=${previewSize.width}, height=${previewSize.height}, rotation=$rotation")
+        Log.d(
+            "CameraX",
+            "Preview size: width=${previewSize.width}, height=${previewSize.height}, rotation=$rotation"
+        )
         return previewSize
     }
 
@@ -838,4 +854,118 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         cameraPermissions.onCancel(null)
     }
 
+    // Checks if manual exposure control is supported on the current camera.
+    @ExperimentalCamera2Interop
+    override fun isManualExposureSupported(callback: (Result<Boolean>) -> Unit) {
+        val result = try {
+            val camera = getCurrentCamera() ?: return callback(Result.success(false))
+            val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+
+            val aeModes =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+            Result.success(aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) == true)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        callback(result)
+    }
+
+    /**
+     * Returns the minimum and maximum exposure time supported by the current camera.
+     * The values are in microseconds.
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws Exception with code "NOT_SUPPORTED" if the exposure time range is not available.
+     */
+    @ExperimentalCamera2Interop
+    override fun getExposureTimeRange(callback: (Result<ExposureTimeRange>) -> Unit) {
+        val result = try {
+            val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+            val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+            val range =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+                    ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
+            Result.success(ExposureTimeRange(range.lower / 1000, range.upper / 1000))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        callback(result)
+    }
+
+    /**
+     * Sets a custom exposure time for the current camera.
+     *
+     * @param durationMicros Desired exposure time in microseconds. Must be within the range
+     * returned by [getExposureTimeRange].
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws Exception with code "NOT_SUPPORTED" if manual exposure is not supported.
+     * @throws Exception with code "OUT_OF_RANGE" if the duration is outside the supported range.
+     */
+    @ExperimentalCamera2Interop
+    override fun setExposureTime(durationMicros: Long, callback: (Result<Unit>) -> Unit) {
+        val result = try {
+            val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+            val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+
+            // Check if manual exposure is supported.
+            val aeModes =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+            if (aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) != true) {
+                throw Exception("NOT_SUPPORTED: Manual exposure not supported")
+            }
+
+            // Validate the duration against the supported range.
+            val range =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+            val durationNs = durationMicros * 1000 // Convert to nanoseconds.
+            if (range != null && (durationNs < range.lower || durationNs > range.upper)) {
+                throw Exception("OUT_OF_RANGE: Exposure time out of range")
+            }
+
+            cameraState.manualExposureTimeNs = durationNs
+
+            // Disable auto exposure and set the custom exposure time using Camera2CameraControl.
+            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+            camera2Control.setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_OFF
+                    )
+                    .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, durationNs)
+                    .build()
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        callback(result)
+    }
+
+    /**
+     * Resets exposure control to automatic mode.
+     * The camera will automatically adjust exposure based on scene conditions.
+     */
+    @ExperimentalCamera2Interop
+    override fun resetExposureToAuto(callback: (Result<Unit>) -> Unit) {
+        val result = try {
+            val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+            // Clear stored manual value
+            cameraState.manualExposureTimeNs = null
+            // TODO: Re-enable auto exposure (use ON or ON_AUTO_FLASH depending on flash mode)
+            // For simplicity, we set CONTROL_AE_MODE_ON. In a full implementation, we should restore the previous flash-related mode.
+            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+            camera2Control.setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_ON
+                    )
+                    .build()
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        callback(result)
+    }
 }

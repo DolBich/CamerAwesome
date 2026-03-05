@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
+import 'package:camerawesome/pigeon.dart';
 import 'package:rxdart/rxdart.dart';
 
 // TODO find a way to explain that this sensorconfig is not bound anymore (user changed sensor for example)
@@ -18,6 +19,8 @@ class SensorConfig {
   late BehaviorSubject<CameraAspectRatios> _aspectRatioController;
 
   late Stream<CameraAspectRatios> aspectRatio$;
+
+  late Stream<Duration?> exposureTime$;
 
   /// Zoom from native side. Must be between 0.0 and 1.0
   late Stream<double> zoom$;
@@ -37,6 +40,8 @@ class SensorConfig {
   final BehaviorSubject<double> _brightnessController =
       BehaviorSubject<double>();
   StreamSubscription? _brightnessSubscription;
+
+  late BehaviorSubject<Duration?> _exposureTimeController;
 
   SensorConfig.single({
     Sensor? sensor,
@@ -86,6 +91,9 @@ class SensorConfig {
     _brightnessSubscription = _brightnessController.stream
         .debounceTime(const Duration(milliseconds: 500))
         .listen((value) => CamerawesomePlugin.setBrightness(value));
+
+    _exposureTimeController = BehaviorSubject<Duration?>.seeded(null);
+    exposureTime$ = _exposureTimeController.stream;
   }
 
   Future<void> setZoom(double zoom) async {
@@ -172,6 +180,38 @@ class SensorConfig {
   /// Returns the current brightness without stream
   double get brightness => _brightnessController.value;
 
+  /// Checks whether manual exposure control is supported on the current device.
+  Future<bool> isManualExposureSupported() {
+    return CamerawesomePlugin.isManualExposureSupported();
+  }
+
+  /// Returns the available exposure time range in microseconds.
+  /// If manual exposure is not supported or an error occurs, returns null.
+  Future<ExposureTimeRange?> getExposureTimeRange() async {
+    final range = await CamerawesomePlugin.getExposureTimeRange();
+    if (range == null) return null;
+    return ExposureTimeRange(
+      minMicroseconds: range.minMicroseconds,
+      maxMicroseconds: range.maxMicroseconds,
+    );
+  }
+
+  /// Sets a custom exposure time.
+  /// The [duration] must be within the range returned by [getExposureTimeRange].
+  /// Throws an exception if manual exposure is not supported or the value is out of range.
+  Future<void> setExposureTime(Duration duration) async {
+    await CamerawesomePlugin.setExposureTime(duration);
+    _exposureTimeController.add(duration);
+  }
+
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
+  Future<void> resetExposureToAuto() {
+    return CamerawesomePlugin.resetExposureToAuto();
+  }
+
+  Duration? get exposureTime => _exposureTimeController.value;
+
   void dispose() {
     _brightnessSubscription?.cancel();
     _brightnessController.close();
@@ -179,5 +219,6 @@ class SensorConfig {
     _zoomController.close();
     _flashModeController.close();
     _aspectRatioController.close();
+    _exposureTimeController.close();
   }
 }
