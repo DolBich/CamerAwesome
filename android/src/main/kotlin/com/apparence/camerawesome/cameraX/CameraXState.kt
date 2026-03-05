@@ -25,6 +25,10 @@ import com.apparence.camerawesome.utils.isMultiCamSupported
 import io.flutter.plugin.common.EventChannel
 import io.flutter.view.TextureRegistry
 import java.util.concurrent.Executor
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import android.hardware.camera2.CaptureRequest
 
 /// Hold the settings of the camera and use cases in this class and
 /// call updateLifecycle() to refresh the state
