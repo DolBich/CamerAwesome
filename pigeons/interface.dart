@@ -296,6 +296,12 @@ class AnalysisImageWrapper {
   });
 }
 
+class ExposureTimeRange {
+  final int minMicroseconds;
+  final int maxMicroseconds;
+  const ExposureTimeRange(this.minMicroseconds, this.maxMicroseconds);
+}
+
 @HostApi()
 abstract class AnalysisImageUtils {
   @async
@@ -323,18 +329,16 @@ abstract class AnalysisImageUtils {
 @HostApi()
 abstract class CameraInterface {
   @async
-  bool setupCamera(
-    List<PigeonSensor> sensors,
-    String aspectRatio,
-    double zoom,
-    bool mirrorFrontCamera,
-    bool enablePhysicalButton,
-    String flashMode,
-    String captureMode,
-    bool enableImageStream,
-    ExifPreferences exifPreferences,
-    VideoOptions? videoOptions,
-  );
+  bool setupCamera(List<PigeonSensor> sensors,
+      String aspectRatio,
+      double zoom,
+      bool mirrorFrontCamera,
+      bool enablePhysicalButton,
+      String flashMode,
+      String captureMode,
+      bool enableImageStream,
+      ExifPreferences exifPreferences,
+      VideoOptions? videoOptions,);
 
   List<String> checkPermissions(List<String> permissions);
 
@@ -377,12 +381,10 @@ abstract class CameraInterface {
   ///
   /// On Android, you can control after how much time you want to switch back
   /// to passive focus mode with [androidFocusSettings].
-  void focusOnPoint(
-    PreviewSize previewSize,
-    double x,
-    double y,
-    AndroidFocusSettings? androidFocusSettings,
-  );
+  void focusOnPoint(PreviewSize previewSize,
+      double x,
+      double y,
+      AndroidFocusSettings? androidFocusSettings,);
 
   void setZoom(double zoom);
 
@@ -414,12 +416,10 @@ abstract class CameraInterface {
 
   void setAspectRatio(String aspectRatio);
 
-  void setupImageAnalysisStream(
-    String format,
-    int width,
-    double? maxFramesPerSecond,
-    bool autoStart,
-  );
+  void setupImageAnalysisStream(String format,
+      int width,
+      double? maxFramesPerSecond,
+      bool autoStart,);
 
   @async
   bool setExifPreferences(ExifPreferences exifPreferences);
@@ -434,4 +434,10 @@ abstract class CameraInterface {
   bool isVideoRecordingAndImageAnalysisSupported(PigeonSensorPosition sensor);
 
   bool isMultiCamSupported();
+
+  ExposureTimeRange getExposureTimeRange();
+
+  bool isManualExposureSupported();
+
+  void setExposureTime(int durationMicros);
 }

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart';
+import 'package:camerawesome/src/pigeon_extensions.dart';
 import 'package:flutter/material.dart';
 
 final previewWidgetKey = GlobalKey();

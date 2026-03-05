@@ -48,6 +48,11 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.math.roundToInt
+import android.hardware.camera2.CaptureRequest
+import android.util.Range
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
 
 
 enum class CaptureModes {
@@ -116,6 +121,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         return future.get()
     }
 
+
+    private fun getCurrentCamera(): androidx.camera.core.Camera? {
+        return cameraState.concurrentCamera?.cameras?.firstOrNull() ?: cameraState.previewCamera
+    }
 
     @SuppressLint("RestrictedApi")
     override fun setupCamera(
@@ -838,4 +847,68 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         cameraPermissions.onCancel(null)
     }
 
+    // Checks if manual exposure control is supported on the current camera.
+    @ExperimentalCamera2Interop
+    override fun isManualExposureSupported(): Boolean {
+        val camera = getCurrentCamera() ?: return false
+        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+        val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+        return aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) == true
+    }
+
+    /**
+     * Returns the minimum and maximum exposure time supported by the current camera.
+     * The values are in microseconds.
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws PlatformException with code "NOT_SUPPORTED" if the exposure time range is not available.
+    */
+    @ExperimentalCamera2Interop
+    override fun getExposureTimeRange(): ExposureTimeRange {
+        val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+        val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+            ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
+        // Convert from nanoseconds to microseconds.
+        return ExposureTimeRange(
+            range.lower / 1000,
+            range.upper / 1000
+        )
+    }
+
+    /**
+     * Sets a custom exposure time for the current camera.
+     *
+     * @param durationMicros Desired exposure time in microseconds. Must be within the range
+     * returned by [getExposureTimeRange].
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws PlatformException with code "NOT_SUPPORTED" if manual exposure is not supported.
+     * @throws PlatformException with code "OUT_OF_RANGE" if the duration is outside the supported range.
+     */
+    @ExperimentalCamera2Interop
+    override fun setExposureTime(durationMicros: Long) {
+        val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+
+        // Check if manual exposure is supported.
+        val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+        if (aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) != true) {
+            throw Exception("NOT_SUPPORTED: Manual exposure not supported")
+        }
+
+        // Validate the duration against the supported range.
+        val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+        val durationNs = durationMicros * 1000 // Convert to nanoseconds.
+        if (range != null && (durationNs < range.lower || durationNs > range.upper)) {
+            throw Exception("OUT_OF_RANGE: Exposure time out of range")
+        }
+
+        // Disable auto exposure and set the custom exposure time using Camera2CameraControl.
+        val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+        camera2Control.setCaptureRequestOptions(
+            CaptureRequestOptions.Builder()
+                .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+                .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, durationNs)
+                .build()
+        )
+    }
 }

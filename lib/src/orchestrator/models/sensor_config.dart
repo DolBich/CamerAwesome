@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
+import 'package:camerawesome/pigeon.dart';
 import 'package:rxdart/rxdart.dart';
 
 // TODO find a way to explain that this sensorconfig is not bound anymore (user changed sensor for example)
@@ -18,6 +19,10 @@ class SensorConfig {
   late BehaviorSubject<CameraAspectRatios> _aspectRatioController;
 
   late Stream<CameraAspectRatios> aspectRatio$;
+
+  late BehaviorSubject<Duration?> _exposureTimeController;
+
+  late Stream<Duration?> exposureTime$;
 
   /// Zoom from native side. Must be between 0.0 and 1.0
   late Stream<double> zoom$;
@@ -86,6 +91,9 @@ class SensorConfig {
     _brightnessSubscription = _brightnessController.stream
         .debounceTime(const Duration(milliseconds: 500))
         .listen((value) => CamerawesomePlugin.setBrightness(value));
+
+    _exposureTimeController = BehaviorSubject<Duration?>();
+    exposureTime$ = _exposureTimeController.stream;
   }
 
   Future<void> setZoom(double zoom) async {
@@ -172,6 +180,26 @@ class SensorConfig {
   /// Returns the current brightness without stream
   double get brightness => _brightnessController.value;
 
+  Future<bool> isManualExposureSupported() {
+    return CamerawesomePlugin.isManualExposureSupported();
+  }
+
+  Future<ExposureTimeRange?> getExposureTimeRange() async {
+    final range = await CamerawesomePlugin.getExposureTimeRange();
+    if (range == null) return null;
+    return ExposureTimeRange(
+      minMicroseconds: range.minMicroseconds,
+      maxMicroseconds: range.maxMicroseconds,
+    );
+  }
+
+  Future<void> setExposureTime(Duration duration) async {
+    await CamerawesomePlugin.setExposureTime(duration);
+    _exposureTimeController.add(duration);
+  }
+
+  Duration? get exposureTime => _exposureTimeController.value;
+
   void dispose() {
     _brightnessSubscription?.cancel();
     _brightnessController.close();
@@ -179,5 +207,6 @@ class SensorConfig {
     _zoomController.close();
     _flashModeController.close();
     _aspectRatioController.close();
+    _exposureTimeController.close();
   }
 }
