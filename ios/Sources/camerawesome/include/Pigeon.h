@@ -386,11 +386,10 @@ extern void SetUpAnalysisImageUtilsWithSuffix(id<FlutterBinaryMessenger> binaryM
 - (void)isVideoRecordingAndImageAnalysisSupportedSensor:(PigeonSensorPosition)sensor completion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
 /// @return `nil` only when `error != nil`.
 - (nullable NSNumber *)isMultiCamSupportedWithError:(FlutterError *_Nullable *_Nonnull)error;
-/// @return `nil` only when `error != nil`.
-- (nullable ExposureTimeRange *)getExposureTimeRangeWithError:(FlutterError *_Nullable *_Nonnull)error;
-/// @return `nil` only when `error != nil`.
-- (nullable NSNumber *)isManualExposureSupportedWithError:(FlutterError *_Nullable *_Nonnull)error;
-- (void)setExposureTimeDurationMicros:(NSInteger)durationMicros error:(FlutterError *_Nullable *_Nonnull)error;
+- (void)getExposureTimeRangeWithCompletion:(void (^)(ExposureTimeRange *_Nullable, FlutterError *_Nullable))completion;
+- (void)isManualExposureSupportedWithCompletion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
+- (void)setExposureTimeDurationMicros:(NSInteger)durationMicros completion:(void (^)(FlutterError *_Nullable))completion;
+- (void)resetExposureToAutoWithCompletion:(void (^)(FlutterError *_Nullable))completion;
 @end
 
 extern void SetUpCameraInterface(id<FlutterBinaryMessenger> binaryMessenger, NSObject<CameraInterface> *_Nullable api);

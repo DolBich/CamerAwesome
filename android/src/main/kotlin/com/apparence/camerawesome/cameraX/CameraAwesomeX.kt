@@ -617,6 +617,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     override fun setSensor(sensors: List<PigeonSensor>) {
         cameraState.apply {
             this.sensors = sensors
+            this.manualExposureTimeNs = null
             // TODO Make below variables parameters
             // Also reset flash mode and aspect ratio
             this.flashMode = FlashMode.NONE
@@ -860,7 +861,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
      * Returns the minimum and maximum exposure time supported by the current camera.
      * The values are in microseconds.
      * @throws IllegalStateException if the camera is not initialized.
-     * @throws PlatformException with code "NOT_SUPPORTED" if the exposure time range is not available.
+     * @throws Exception with code "NOT_SUPPORTED" if the exposure time range is not available.
     */
     @ExperimentalCamera2Interop
     override fun getExposureTimeRange(): ExposureTimeRange {
@@ -881,8 +882,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
      * @param durationMicros Desired exposure time in microseconds. Must be within the range
      * returned by [getExposureTimeRange].
      * @throws IllegalStateException if the camera is not initialized.
-     * @throws PlatformException with code "NOT_SUPPORTED" if manual exposure is not supported.
-     * @throws PlatformException with code "OUT_OF_RANGE" if the duration is outside the supported range.
+     * @throws Exception with code "NOT_SUPPORTED" if manual exposure is not supported.
+     * @throws Exception with code "OUT_OF_RANGE" if the duration is outside the supported range.
      */
     @ExperimentalCamera2Interop
     override fun setExposureTime(durationMicros: Long) {
@@ -902,12 +903,32 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             throw Exception("OUT_OF_RANGE: Exposure time out of range")
         }
 
+        cameraState.manualExposureTimeNs = durationNs
         // Disable auto exposure and set the custom exposure time using Camera2CameraControl.
         val camera2Control = Camera2CameraControl.from(camera.cameraControl)
         camera2Control.setCaptureRequestOptions(
             CaptureRequestOptions.Builder()
                 .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, durationNs)
+                .build()
+        )
+    }
+
+    /**
+     * Resets exposure control to automatic mode.
+     * The camera will automatically adjust exposure based on scene conditions.
+     */
+    @ExperimentalCamera2Interop
+    override fun resetExposureToAuto() {
+        val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
+        val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+        // Clear stored manual value
+        cameraState.manualExposureTimeNs = null
+        // TODO: Re-enable auto exposure (use ON or ON_AUTO_FLASH depending on flash mode)
+        // For simplicity, we set CONTROL_AE_MODE_ON. In a full implementation, we should restore the previous flash-related mode.
+        camera2Control.setCaptureRequestOptions(
+            CaptureRequestOptions.Builder()
+                .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                 .build()
         )
     }

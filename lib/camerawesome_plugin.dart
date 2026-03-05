@@ -555,4 +555,10 @@ class CamerawesomePlugin {
       throw Exception('Failed to set exposure time: $e');
     }
   }
+
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
+  static Future<void> resetExposureToAuto() {
+    return CameraInterface().resetExposureToAuto();
+  }
 }

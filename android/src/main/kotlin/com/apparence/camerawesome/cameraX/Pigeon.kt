@@ -869,9 +869,10 @@ interface CameraInterface {
   fun setFilter(matrix: List<Double>)
   fun isVideoRecordingAndImageAnalysisSupported(sensor: PigeonSensorPosition, callback: (Result<Boolean>) -> Unit)
   fun isMultiCamSupported(): Boolean
-  fun getExposureTimeRange(): ExposureTimeRange
-  fun isManualExposureSupported(): Boolean
-  fun setExposureTime(durationMicros: Long)
+  fun getExposureTimeRange(callback: (Result<ExposureTimeRange>) -> Unit)
+  fun isManualExposureSupported(callback: (Result<Boolean>) -> Unit)
+  fun setExposureTime(durationMicros: Long, callback: (Result<Unit>) -> Unit)
+  fun resetExposureToAuto(callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by CameraInterface. */
@@ -1559,12 +1560,15 @@ interface CameraInterface {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.getExposureTimeRange$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.getExposureTimeRange())
-            } catch (exception: Throwable) {
-              wrapError(exception)
+            api.getExposureTimeRange{ result: Result<ExposureTimeRange> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
@@ -1574,12 +1578,15 @@ interface CameraInterface {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.isManualExposureSupported$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.isManualExposureSupported())
-            } catch (exception: Throwable) {
-              wrapError(exception)
+            api.isManualExposureSupported{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
@@ -1591,13 +1598,31 @@ interface CameraInterface {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val durationMicrosArg = args[0].let { num -> if (num is Int) num.toLong() else num as Long }
-            val wrapped: List<Any?> = try {
-              api.setExposureTime(durationMicrosArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              wrapError(exception)
+            api.setExposureTime(durationMicrosArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.resetExposureToAuto$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.resetExposureToAuto{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

@@ -20,8 +20,6 @@ class SensorConfig {
 
   late Stream<CameraAspectRatios> aspectRatio$;
 
-  late BehaviorSubject<Duration?> _exposureTimeController;
-
   late Stream<Duration?> exposureTime$;
 
   /// Zoom from native side. Must be between 0.0 and 1.0
@@ -42,6 +40,8 @@ class SensorConfig {
   final BehaviorSubject<double> _brightnessController =
       BehaviorSubject<double>();
   StreamSubscription? _brightnessSubscription;
+
+  late BehaviorSubject<Duration?> _exposureTimeController;
 
   SensorConfig.single({
     Sensor? sensor,
@@ -180,10 +180,13 @@ class SensorConfig {
   /// Returns the current brightness without stream
   double get brightness => _brightnessController.value;
 
+  /// Checks whether manual exposure control is supported on the current device.
   Future<bool> isManualExposureSupported() {
     return CamerawesomePlugin.isManualExposureSupported();
   }
 
+  /// Returns the available exposure time range in microseconds.
+  /// If manual exposure is not supported or an error occurs, returns null.
   Future<ExposureTimeRange?> getExposureTimeRange() async {
     final range = await CamerawesomePlugin.getExposureTimeRange();
     if (range == null) return null;
@@ -193,9 +196,18 @@ class SensorConfig {
     );
   }
 
+  /// Sets a custom exposure time.
+  /// The [duration] must be within the range returned by [getExposureTimeRange].
+  /// Throws an exception if manual exposure is not supported or the value is out of range.
   Future<void> setExposureTime(Duration duration) async {
     await CamerawesomePlugin.setExposureTime(duration);
     _exposureTimeController.add(duration);
+  }
+
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
+  Future<void> resetExposureToAuto() {
+    return CamerawesomePlugin.resetExposureToAuto();
   }
 
   Duration? get exposureTime => _exposureTimeController.value;

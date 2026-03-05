@@ -435,9 +435,17 @@ abstract class CameraInterface {
 
   bool isMultiCamSupported();
 
+  @async
   ExposureTimeRange getExposureTimeRange();
 
+  @async
   bool isManualExposureSupported();
 
+  @async
   void setExposureTime(int durationMicros);
+
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
+  @async
+  void resetExposureToAuto();
 }

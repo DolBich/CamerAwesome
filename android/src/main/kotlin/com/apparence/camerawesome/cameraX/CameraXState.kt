@@ -52,6 +52,8 @@ data class CameraXState(
     var mirrorFrontCamera: Boolean = false,
     val videoRecordingQuality: VideoRecordingQuality?,
     val videoOptions: AndroidVideoOptions?,
+
+    var manualExposureTimeNs: Long? = null
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -190,6 +192,9 @@ data class CameraXState(
             )
             // Only set flash to the main camera (the first one)
             concurrentCamera!!.cameras.first().cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
+
+            /// Applying manual exposure time for each camera if needed
+            concurrentCamera!!.cameras.forEach { applyManualExposureIfNeeded(it) }
         } else {
             val useCaseGroupBuilder = UseCaseGroup.Builder()
             // Handle single camera
@@ -268,6 +273,9 @@ data class CameraXState(
                 useCaseGroupBuilder.build(),
             )
             previewCamera!!.cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
+
+            /// Applying manual exposure time if needed
+            applyManualExposureIfNeeded(previewCamera!!)
         }
     }
 
@@ -336,6 +344,20 @@ data class CameraXState(
             }
         }
     }
+
+    @ExperimentalCamera2Interop
+    private fun applyManualExposureIfNeeded(camera: Camera) {
+        manualExposureTimeNs?.let { exposureTime ->
+            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+            camera2Control.setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+                    .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
+                    .build()
+            )
+        }
+    }
+
 
     fun setLinearZoom(zoom: Float) {
         mainCameraControl.setLinearZoom(zoom)

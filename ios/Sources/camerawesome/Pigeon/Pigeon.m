@@ -1548,11 +1548,11 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
         binaryMessenger:binaryMessenger
         codec:nullGetPigeonCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(getExposureTimeRangeWithError:)], @"CameraInterface api (%@) doesn't respond to @selector(getExposureTimeRangeWithError:)", api);
+      NSCAssert([api respondsToSelector:@selector(getExposureTimeRangeWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(getExposureTimeRangeWithCompletion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
-        FlutterError *error;
-        ExposureTimeRange *output = [api getExposureTimeRangeWithError:&error];
-        callback(wrapResult(output, error));
+        [api getExposureTimeRangeWithCompletion:^(ExposureTimeRange *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
       }];
     } else {
       [channel setMessageHandler:nil];
@@ -1565,11 +1565,11 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
         binaryMessenger:binaryMessenger
         codec:nullGetPigeonCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(isManualExposureSupportedWithError:)], @"CameraInterface api (%@) doesn't respond to @selector(isManualExposureSupportedWithError:)", api);
+      NSCAssert([api respondsToSelector:@selector(isManualExposureSupportedWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(isManualExposureSupportedWithCompletion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
-        FlutterError *error;
-        NSNumber *output = [api isManualExposureSupportedWithError:&error];
-        callback(wrapResult(output, error));
+        [api isManualExposureSupportedWithCompletion:^(NSNumber *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
       }];
     } else {
       [channel setMessageHandler:nil];
@@ -1582,13 +1582,30 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
         binaryMessenger:binaryMessenger
         codec:nullGetPigeonCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(setExposureTimeDurationMicros:error:)], @"CameraInterface api (%@) doesn't respond to @selector(setExposureTimeDurationMicros:error:)", api);
+      NSCAssert([api respondsToSelector:@selector(setExposureTimeDurationMicros:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setExposureTimeDurationMicros:completion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray<id> *args = message;
         NSInteger arg_durationMicros = [GetNullableObjectAtIndex(args, 0) integerValue];
-        FlutterError *error;
-        [api setExposureTimeDurationMicros:arg_durationMicros error:&error];
-        callback(wrapResult(nil, error));
+        [api setExposureTimeDurationMicros:arg_durationMicros completion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.resetExposureToAuto", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(resetExposureToAutoWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(resetExposureToAutoWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api resetExposureToAutoWithCompletion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
       }];
     } else {
       [channel setMessageHandler:nil];
