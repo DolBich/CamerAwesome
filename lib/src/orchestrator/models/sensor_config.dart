@@ -92,7 +92,7 @@ class SensorConfig {
         .debounceTime(const Duration(milliseconds: 500))
         .listen((value) => CamerawesomePlugin.setBrightness(value));
 
-    _exposureTimeController = BehaviorSubject<Duration?>();
+    _exposureTimeController = BehaviorSubject<Duration?>.seeded(null);
     exposureTime$ = _exposureTimeController.stream;
   }
 
