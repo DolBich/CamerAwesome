@@ -54,7 +54,6 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 
-
 enum class CaptureModes {
     PHOTO, VIDEO, PREVIEW, ANALYSIS_ONLY,
 }
@@ -850,42 +849,6 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
 
     // Checks if manual exposure control is supported on the current camera.
     @ExperimentalCamera2Interop
-    override fun isManualExposureSupported(): Boolean {
-        val camera = getCurrentCamera() ?: return false
-        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-        val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
-        return aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) == true
-    }
-
-    /**
-     * Returns the minimum and maximum exposure time supported by the current camera.
-     * The values are in microseconds.
-     * @throws IllegalStateException if the camera is not initialized.
-     * @throws Exception with code "NOT_SUPPORTED" if the exposure time range is not available.
-    */
-    @ExperimentalCamera2Interop
-    override fun getExposureTimeRange(): ExposureTimeRange {
-        val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
-        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-        val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
-            ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
-        // Convert from nanoseconds to microseconds.
-        return ExposureTimeRange(
-            range.lower / 1000,
-            range.upper / 1000
-        )
-    }
-
-    /**
-     * Sets a custom exposure time for the current camera.
-     *
-     * @param durationMicros Desired exposure time in microseconds. Must be within the range
-     * returned by [getExposureTimeRange].
-     * @throws IllegalStateException if the camera is not initialized.
-     * @throws Exception with code "NOT_SUPPORTED" if manual exposure is not supported.
-     * @throws Exception with code "OUT_OF_RANGE" if the duration is outside the supported range.
-     */
-    @ExperimentalCamera2Interop
     override fun isManualExposureSupported(callback: (Result<Boolean>) -> Unit) {
         val result = try {
             val camera = getCurrentCamera() ?: return callback(Result.success(false))
@@ -898,6 +861,12 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         callback(result)
     }
 
+    /**
+     * Returns the minimum and maximum exposure time supported by the current camera.
+     * The values are in microseconds.
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws Exception with code "NOT_SUPPORTED" if the exposure time range is not available.
+     */
     @ExperimentalCamera2Interop
     override fun getExposureTimeRange(callback: (Result<ExposureTimeRange>) -> Unit) {
         val result = try {
