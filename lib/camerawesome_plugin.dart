@@ -531,7 +531,7 @@ class CamerawesomePlugin {
   static Future<bool> isManualExposureSupported() async {
     try {
       log('1');
-      return CameraInterface().isManualExposureSupported();
+      return await CameraInterface().isManualExposureSupported();
     } catch (e) {
       log('3');
       throw Exception('Failed to get isManualExposureSupported: $e');
@@ -542,7 +542,7 @@ class CamerawesomePlugin {
   /// Returns null if manual exposure is not supported or an error occurs.
   static Future<ExposureTimeRange?> getExposureTimeRange() async {
     try {
-      return CameraInterface().getExposureTimeRange();
+      return await CameraInterface().getExposureTimeRange();
     } catch (e) {
       throw Exception('Failed to get exposure time range: $e');
     }
@@ -561,9 +561,9 @@ class CamerawesomePlugin {
 
   /// Resets exposure control to automatic mode.
   /// The camera will automatically adjust exposure based on scene conditions.
-  static Future<void> resetExposureToAuto() {
+  static Future<void> resetExposureToAuto() async {
     try {
-      return CameraInterface().resetExposureToAuto();
+      await CameraInterface().resetExposureToAuto();
     } catch (e) {
       throw Exception('Failed to reset exposure to auto: $e');
     }
