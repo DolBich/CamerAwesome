@@ -871,6 +871,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             if (level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
                 // Legacy devices часто не поддерживают ручное управление для JPEG
                 return callback(Result.failure(Exception("NOT_SUPPORTED: Manual exposure not supported on legacy device")))
+            } else {
+                return callback(Result.failure(Exception("NOT_SUPPORTED: Manual exposure not supported on legacy device _SUPPORTED")))
             }
 
             val aeModes =
