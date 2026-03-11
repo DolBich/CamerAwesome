@@ -153,7 +153,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val cameraProvider = getCameraProvider()
 
         val mode = CaptureModes.valueOf(captureMode)
-        cameraState = CameraXState(cameraProvider = cameraProvider,
+        cameraState = CameraXState(
+            cameraProvider = cameraProvider,
             textureEntries = sensors.mapIndexed { index: Int, pigeonSensor: PigeonSensor ->
                 (pigeonSensor.deviceId
                     ?: index.toString()) to textureRegistry!!.createSurfaceTexture()
@@ -390,7 +391,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             ImageCapture.OutputFileOptions.Builder(imageFile).setMetadata(metadata).build()
 //        for (imageCapture in cameraState.imageCaptures) {
         imageCapture.targetRotation = orientationStreamListener!!.surfaceOrientation
-        imageCapture.takePicture(outputFileOptions,
+        imageCapture.takePicture(
+            outputFileOptions,
             ContextCompat.getMainExecutor(activity!!),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
@@ -521,7 +523,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
                     }
                 }
                 videoCapture.targetRotation = orientationStreamListener!!.surfaceOrientation
-                cameraState.recordings!!.add(videoCapture.output.prepareRecording(
+                cameraState.recordings!!.add(
+                    videoCapture.output.prepareRecording(
                     activity!!, FileOutputOptions.Builder(File(paths[index]!!)).build()
                 ).apply { if (cameraState.enableAudioRecording && !ignoreAudio) withAudioEnabled() }
                     .start(cameraState.executor(activity!!), recordingListener))
@@ -769,7 +772,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             else -> PreviewSize(res.width.toDouble(), res.height.toDouble())
         }
 
-        Log.d("CameraX", "Preview size: width=${previewSize.width}, height=${previewSize.height}, rotation=$rotation")
+        Log.d(
+            "CameraX",
+            "Preview size: width=${previewSize.width}, height=${previewSize.height}, rotation=$rotation"
+        )
         return previewSize
     }
 
@@ -853,7 +859,22 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val result = try {
             val camera = getCurrentCamera() ?: return callback(Result.success(false))
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+            val characteristics =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            val outputFormats = characteristics?.getOutputFormats() ?: intArrayOf()
+
+// Проверяем, поддерживается ли JPEG с выключенным AE
+// К сожалению, нет прямого способа узнать, но можно проверить размеры JPEG при AE_OFF?
+// Вместо этого можно проверить уровень аппаратной поддержки
+            val level =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)
+            if (level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
+                // Legacy devices часто не поддерживают ручное управление для JPEG
+                return callback(Result.failure(Exception("NOT_SUPPORTED: Manual exposure not supported on legacy device")))
+            }
+
+            val aeModes =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
             Result.success(aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) == true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -872,8 +893,9 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val result = try {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
-                ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
+            val range =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+                    ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
             Result.success(ExposureTimeRange(range.lower / 1000, range.upper / 1000))
         } catch (e: Exception) {
             Result.failure(e)
@@ -897,13 +919,15 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
 
             // Check if manual exposure is supported.
-            val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+            val aeModes =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
             if (aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) != true) {
                 throw Exception("NOT_SUPPORTED: Manual exposure not supported")
             }
 
             // Validate the duration against the supported range.
-            val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+            val range =
+                camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
             val durationNs = durationMicros * 1000 // Convert to nanoseconds.
             if (range != null && (durationNs < range.lower || durationNs > range.upper)) {
                 throw Exception("OUT_OF_RANGE: Exposure time out of range")
@@ -915,7 +939,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera2Control = Camera2CameraControl.from(camera.cameraControl)
             camera2Control.setCaptureRequestOptions(
                 CaptureRequestOptions.Builder()
-                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+                    .setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_OFF
+                    )
                     .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, durationNs)
                     .build()
             )
@@ -941,7 +968,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera2Control = Camera2CameraControl.from(camera.cameraControl)
             camera2Control.setCaptureRequestOptions(
                 CaptureRequestOptions.Builder()
-                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                    .setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_ON
+                    )
                     .build()
             )
             Result.success(Unit)
