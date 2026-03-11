@@ -531,7 +531,7 @@ class CamerawesomePlugin {
     try {
       return CameraInterface().isManualExposureSupported();
     } catch (e) {
-      return false;
+      throw Exception('Failed to get isManualExposureSupported: $e');
     }
   }
 
@@ -541,7 +541,7 @@ class CamerawesomePlugin {
     try {
       return CameraInterface().getExposureTimeRange();
     } catch (e) {
-      return null;
+      throw Exception('Failed to get exposure time range: $e');
     }
   }
 
@@ -559,6 +559,10 @@ class CamerawesomePlugin {
   /// Resets exposure control to automatic mode.
   /// The camera will automatically adjust exposure based on scene conditions.
   static Future<void> resetExposureToAuto() {
-    return CameraInterface().resetExposureToAuto();
+    try {
+      return CameraInterface().resetExposureToAuto();
+    } catch (e) {
+      throw Exception('Failed to reset exposure to auto: $e');
+    }
   }
 }
