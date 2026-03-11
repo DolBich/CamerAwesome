@@ -3,6 +3,7 @@
 // ignore_for_file: public_member_api_docs, non_constant_identifier_names, avoid_as, unused_import, unnecessary_parenthesis, prefer_null_aware_operators, omit_local_variable_types, unused_shown_name, unnecessary_import, no_leading_underscores_for_local_identifiers
 
 import 'dart:async';
+import 'dart:developer';
 import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 
 import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
@@ -1741,6 +1742,7 @@ class CameraInterface {
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
     } else if (pigeonVar_replyList.length > 1) {
+      log('2');
       throw PlatformException(
         code: pigeonVar_replyList[0]! as String,
         message: pigeonVar_replyList[1] as String?,

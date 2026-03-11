@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
@@ -529,8 +530,10 @@ class CamerawesomePlugin {
   /// Checks if manual exposure control is supported on the current device.
   static Future<bool> isManualExposureSupported() async {
     try {
+      log('1');
       return CameraInterface().isManualExposureSupported();
     } catch (e) {
+      log('3');
       throw Exception('Failed to get isManualExposureSupported: $e');
     }
   }
