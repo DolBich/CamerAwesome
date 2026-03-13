@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
@@ -529,43 +528,25 @@ class CamerawesomePlugin {
 
   /// Checks if manual exposure control is supported on the current device.
   static Future<bool> isManualExposureSupported() async {
-    try {
-      log('1');
-      return await CameraInterface().isManualExposureSupported();
-    } catch (e) {
-      log('3');
-      throw Exception('Failed to get isManualExposureSupported: $e');
-    }
+      return CameraInterface().isManualExposureSupported();
   }
 
   /// Returns the available exposure time range in microseconds.
   /// Returns null if manual exposure is not supported or an error occurs.
   static Future<ExposureTimeRange?> getExposureTimeRange() async {
-    try {
-      return await CameraInterface().getExposureTimeRange();
-    } catch (e) {
-      throw Exception('Failed to get exposure time range: $e');
-    }
+      return CameraInterface().getExposureTimeRange();
   }
 
   /// Sets a custom exposure time.
   /// [duration] must be within the range returned by [getExposureTimeRange].
   /// Throws an exception if manual exposure is not supported or value out of range.
   static Future<void> setExposureTime(Duration duration) async {
-    try {
-      await CameraInterface().setExposureTime(duration.inMicroseconds);
-    } catch (e) {
-      throw Exception('Failed to set exposure time: $e');
-    }
+      CameraInterface().setExposureTime(duration.inMicroseconds);
   }
 
   /// Resets exposure control to automatic mode.
   /// The camera will automatically adjust exposure based on scene conditions.
   static Future<void> resetExposureToAuto() async {
-    try {
-      await CameraInterface().resetExposureToAuto();
-    } catch (e) {
-      throw Exception('Failed to reset exposure to auto: $e');
-    }
+      CameraInterface().resetExposureToAuto();
   }
 }
