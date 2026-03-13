@@ -525,9 +525,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
                 videoCapture.targetRotation = orientationStreamListener!!.surfaceOrientation
                 cameraState.recordings!!.add(
                     videoCapture.output.prepareRecording(
-                    activity!!, FileOutputOptions.Builder(File(paths[index]!!)).build()
-                ).apply { if (cameraState.enableAudioRecording && !ignoreAudio) withAudioEnabled() }
-                    .start(cameraState.executor(activity!!), recordingListener))
+                        activity!!, FileOutputOptions.Builder(File(paths[index]!!)).build()
+                    )
+                        .apply { if (cameraState.enableAudioRecording && !ignoreAudio) withAudioEnabled() }
+                        .start(cameraState.executor(activity!!), recordingListener))
             }
             callback(Result.success(Unit))
         }
@@ -859,21 +860,6 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val result = try {
             val camera = getCurrentCamera() ?: return callback(Result.success(false))
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            val characteristics =
-                camera2Info.getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            val outputFormats = characteristics?.getOutputFormats() ?: intArrayOf()
-
-// Проверяем, поддерживается ли JPEG с выключенным AE
-// К сожалению, нет прямого способа узнать, но можно проверить размеры JPEG при AE_OFF?
-// Вместо этого можно проверить уровень аппаратной поддержки
-            val level =
-                camera2Info.getCameraCharacteristic(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)
-            if (level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
-                // Legacy devices часто не поддерживают ручное управление для JPEG
-                return callback(Result.failure(Exception("NOT_SUPPORTED: Manual exposure not supported on legacy device")))
-            } else {
-                return callback(Result.failure(Exception("NOT_SUPPORTED: Manual exposure not supported on legacy device _SUPPORTED")))
-            }
 
             val aeModes =
                 camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
