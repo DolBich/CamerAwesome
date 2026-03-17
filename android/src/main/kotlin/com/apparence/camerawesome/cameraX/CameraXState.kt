@@ -57,12 +57,12 @@ data class CameraXState(
     val videoRecordingQuality: VideoRecordingQuality?,
     val videoOptions: AndroidVideoOptions?,
 
-    var manualExposureTimeNs: Long? = null
+    var manualExposureTimeNs: Long? = null,
 
     var manualIso: Int? = null,
 
-    var manualFocusDistance: Float? = null
-    var defaultAfMode: Int? = null
+    var manualFocusDistance: Float? = null,
+    var defaultAfMode: Int? = null,
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -403,7 +403,7 @@ data class CameraXState(
      * so we pick a sensible mode (CONTINUOUS_PICTURE if available, otherwise AUTO).
      * This can be improved later if we store the actual mode used before entering manual focus.
      */
-    private fun selectDefaultAfMode(camera: Camera) {
+    fun selectDefaultAfMode(camera: Camera) {
         val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
         val availableAfModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
         defaultAfMode = when {
