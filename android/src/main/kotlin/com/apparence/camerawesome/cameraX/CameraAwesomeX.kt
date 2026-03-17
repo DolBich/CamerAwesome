@@ -854,15 +854,20 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         cameraPermissions.onCancel(null)
     }
 
-    // Checks if manual exposure control is supported on the current camera.
+    // ==================== EXPOSURE ====================
+
+    /**
+     * Checks whether manual exposure control is supported on the current device.
+     *
+     * Manual exposure control is considered supported if the camera can disable
+     * auto-exposure (AE), i.e., if CONTROL_AE_MODE_OFF is available.
+     */
     @ExperimentalCamera2Interop
     override fun isManualExposureSupported(callback: (Result<Boolean>) -> Unit) {
         val result = try {
             val camera = getCurrentCamera() ?: return callback(Result.success(false))
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-
-            val aeModes =
-                camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
+            val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
             Result.success(aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) == true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -873,6 +878,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     /**
      * Returns the minimum and maximum exposure time supported by the current camera.
      * The values are in microseconds.
+     *
      * @throws IllegalStateException if the camera is not initialized.
      * @throws Exception with code "NOT_SUPPORTED" if the exposure time range is not available.
      */
@@ -881,9 +887,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         val result = try {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            val range =
-                camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
-                    ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
+            val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
+                ?: throw Exception("NOT_SUPPORTED: Exposure time range not available")
             Result.success(ExposureTimeRange(range.lower / 1000, range.upper / 1000))
         } catch (e: Exception) {
             Result.failure(e)
@@ -894,8 +899,12 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     /**
      * Sets a custom exposure time for the current camera.
      *
+     * After a successful call, the camera enters manual exposure mode (AE disabled).
+     * If ISO was previously set manually, it remains; otherwise, ISO becomes undefined
+     * (camera-dependent behavior). For full manual control, set both exposure time and ISO.
+     *
      * @param durationMicros Desired exposure time in microseconds. Must be within the range
-     * returned by [getExposureTimeRange].
+     *                       returned by [getExposureTimeRange].
      * @throws IllegalStateException if the camera is not initialized.
      * @throws Exception with code "NOT_SUPPORTED" if manual exposure is not supported.
      * @throws Exception with code "OUT_OF_RANGE" if the duration is outside the supported range.
@@ -906,21 +915,21 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
 
-            // Проверка поддержки ручного режима
+            // Check if manual exposure is supported.
             val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
             if (aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) != true) {
                 throw Exception("NOT_SUPPORTED: Manual exposure not supported")
             }
 
-            // Валидация диапазона
+            // Validate duration.
             val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE) as Range<Long>?
-            val durationNs = durationMicros * 1000 // в наносекунды
+            val durationNs = durationMicros * 1000 // convert to nanoseconds
             if (range != null && (durationNs < range.lower || durationNs > range.upper)) {
                 throw Exception("OUT_OF_RANGE: Exposure time out of range")
             }
 
             cameraState.manualExposureTimeNs = durationNs
-            cameraState.applyExposure(camera)  // применяем экспозицию (выдержка + ISO)
+            cameraState.applyExposure(camera)  // applies exposure (shutter + ISO) based on current state
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -930,7 +939,9 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     }
 
     /**
-     * Resets exposure control to automatic mode.
+     * Resets exposure control to fully automatic mode.
+     *
+     * Both manual exposure time and manual ISO are cleared, and auto-exposure (AE) is re‑enabled.
      * The camera will automatically adjust exposure based on scene conditions.
      */
     override fun resetExposureToAuto(callback: (Result<Unit>) -> Unit) {
@@ -938,7 +949,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             cameraState.manualExposureTimeNs = null
             cameraState.manualIso = null
-            cameraState.applyExposure(camera)  // включит AE (оба параметра null)
+            cameraState.applyExposure(camera)  // enables AE (both parameters are null)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -950,8 +961,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     // ==================== ISO ====================
 
     /**
-     * Checks if manual ISO control is supported on the current camera.
-     * Manual ISO is typically available if auto-exposure can be disabled.
+     * Checks whether manual ISO control is supported on the current camera.
+     *
+     * Manual ISO is typically available if auto-exposure can be disabled
+     * (i.e., CONTROL_AE_MODE_OFF is supported).
      */
     @ExperimentalCamera2Interop
     override fun isManualIsoSupported(callback: (Result<Boolean>) -> Unit) {
@@ -968,6 +981,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
 
     /**
      * Returns the minimum and maximum ISO sensitivity supported by the current camera.
+     *
      * @throws IllegalStateException if the camera is not initialized.
      * @throws Exception with code "NOT_SUPPORTED" if the ISO range is not available.
      */
@@ -991,6 +1005,11 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
     /**
      * Sets a custom ISO sensitivity for the current camera.
      *
+     * After a successful call, the camera enters manual exposure mode (AE disabled).
+     * If exposure time was previously set manually, it remains; otherwise, exposure time
+     * becomes undefined (camera-dependent behavior). For full manual control, set both
+     * exposure time and ISO.
+     *
      * @param iso Desired ISO value. Must be within the range returned by [getIsoRange].
      * @throws IllegalStateException if the camera is not initialized.
      * @throws Exception with code "NOT_SUPPORTED" if manual ISO is not supported.
@@ -1002,20 +1021,20 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
 
-            // Проверка поддержки (ручной ISO требует выключения AE)
+            // Check if manual exposure (and thus ISO) is supported.
             val aeModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES) as IntArray?
             if (aeModes?.contains(CameraCharacteristics.CONTROL_AE_MODE_OFF) != true) {
                 throw Exception("NOT_SUPPORTED: Manual ISO not supported (AE cannot be disabled)")
             }
 
-            // Валидация диапазона
+            // Validate ISO range.
             val range = camera2Info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE) as Range<Int>?
             if (range != null && (iso < range.lower || iso > range.upper)) {
                 throw Exception("OUT_OF_RANGE: ISO value out of range")
             }
 
             cameraState.manualIso = iso.toInt()
-            cameraState.applyExposure(camera)  // применяем экспозицию (выдержка + ISO)
+            cameraState.applyExposure(camera)  // applies exposure (shutter + ISO) based on current state
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1024,17 +1043,21 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         callback(result)
     }
 
-// ==================== FOCUS DISTANCE ====================
+    // ==================== FOCUS DISTANCE ====================
 
+    /**
+     * Checks whether manual focus distance control is supported on the current camera.
+     *
+     * Manual focus is considered supported if the camera can disable auto‑focus
+     * (AF_MODE_OFF) and provides information about the minimum focus distance.
+     */
     @ExperimentalCamera2Interop
     override fun isManualFocusSupported(callback: (Result<Boolean>) -> Unit) {
         val result = try {
             val camera = getCurrentCamera() ?: return callback(Result.success(false))
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            // Ручной фокус возможен, если поддерживается AF_MODE_OFF
             val afModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
             val hasAfOff = afModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_OFF) == true
-            // Также нужна информация о минимальной дистанции
             val minFocusDistance = camera2Info.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) as Float?
             Result.success(hasAfOff && minFocusDistance != null)
         } catch (e: Exception) {
@@ -1043,6 +1066,18 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         callback(result)
     }
 
+    /**
+     * Returns the range of focus distances supported by the current camera.
+     *
+     * The range is expressed in **diopters** (1 / distance in meters):
+     * - `minDistance` corresponds to the closest possible focus (macro).
+     * - `0.0` corresponds to infinity.
+     *
+     * If the camera does not provide focus distance information, returns `null`.
+     *
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws Exception with code "NOT_SUPPORTED" if focus distance info is not available.
+     */
     @ExperimentalCamera2Interop
     override fun getFocusDistanceRange(callback: (Result<FocusDistanceRange?>) -> Unit) {
         val result = try {
@@ -1052,7 +1087,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             if (minDistance == null) {
                 Result.success(null)
             } else {
-                // Диапазон: от minDistance (макро) до 0.0 (бесконечность)
+                // Range: from minDistance (macro) to 0.0 (infinity)
                 Result.success(FocusDistanceRange(minDistance.toDouble(), 0.0))
             }
         } catch (e: Exception) {
@@ -1061,19 +1096,34 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         callback(result)
     }
 
+    /**
+     * Sets a custom focus distance for the current camera.
+     *
+     * After a successful call, the camera enters manual focus mode (AF disabled)
+     * and the lens is set to the given distance. The first time this method is called,
+     * a default auto‑focus mode is selected via [selectDefaultAfMode] and stored internally
+     * for later use by [resetFocusToAuto]. This default mode is chosen from the camera's
+     * available AF modes (typically CONTINUOUS_PICTURE if supported, otherwise AUTO).
+     *
+     * @param distance Desired focus distance in **diopters**. Must be within the range
+     *                 returned by [getFocusDistanceRange] (0.0 = infinity, positive = closer).
+     * @throws IllegalStateException if the camera is not initialized.
+     * @throws Exception with code "NOT_SUPPORTED" if manual focus is not supported.
+     * @throws Exception with code "OUT_OF_RANGE" if the distance is outside the supported range.
+     */
     @ExperimentalCamera2Interop
     override fun setFocusDistance(distance: Double, callback: (Result<Unit>) -> Unit) {
         val result = try {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
 
-            // Проверка поддержки ручного фокуса
+            // Check manual focus support.
             val afModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
             if (afModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_OFF) != true) {
                 throw Exception("NOT_SUPPORTED: Manual focus not supported (AF_MODE_OFF unavailable)")
             }
 
-            // Валидация дистанции
+            // Validate distance.
             val minDistance = camera2Info.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) as Float?
                 ?: throw Exception("NOT_SUPPORTED: Focus distance info not available")
             val distanceFloat = distance.toFloat()
@@ -1081,13 +1131,13 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
                 throw Exception("OUT_OF_RANGE: Focus distance must be between 0.0 (infinity) and $minDistance (macro)")
             }
 
-            // Инициализируем режим автофокуса по умолчанию, если ещё не установлен
+            // Initialize the default auto‑focus mode if not already set.
             if (cameraState.defaultAfMode == null) {
                 cameraState.selectDefaultAfMode(camera)
             }
 
             cameraState.manualFocusDistance = distanceFloat
-            cameraState.applyFocus(camera)  // применяем фокус (ручной или авто)
+            cameraState.applyFocus(camera)  // applies focus (manual or auto) based on current state
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -1096,11 +1146,21 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         callback(result)
     }
 
+    /**
+     * Resets focus control to automatic mode.
+     *
+     * The camera returns to auto‑focus, using the default mode selected by [selectDefaultAfMode]
+     * (typically CONTINUOUS_PICTURE if available, otherwise AUTO). Note that this does **not**
+     * restore any previous auto‑focus mode that might have been active before entering manual focus;
+     * it always uses a reasonable fallback determined from the camera's capabilities.
+     *
+     * The previously set manual distance is cleared.
+     */
     override fun resetFocusToAuto(callback: (Result<Unit>) -> Unit) {
         val result = try {
             val camera = getCurrentCamera() ?: throw IllegalStateException("Camera not initialized")
             cameraState.manualFocusDistance = null
-            cameraState.applyFocus(camera)  // переключится в авторежим (используя defaultAfMode)
+            cameraState.applyFocus(camera)  // switches to auto‑focus using defaultAfMode
 
             Result.success(Unit)
         } catch (e: Exception) {

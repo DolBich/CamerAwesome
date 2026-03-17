@@ -355,9 +355,9 @@ data class CameraXState(
     }
 
     /**
-     * Применяет текущие настройки экспозиции (выдержка и ISO) к камере.
-     * Если задана хотя бы одна ручная настройка, отключает AE и устанавливает имеющиеся значения.
-     * Если ни одной нет, включает AE в автоматический режим.
+     * Applies the current exposure settings (exposure time and ISO) to the given camera.
+     * If at least one manual setting is present, AE is disabled and the available values are set.
+     * If none are present, AE is enabled in automatic mode.
      */
     @ExperimentalCamera2Interop
     fun applyExposure(camera: Camera) {
@@ -373,20 +373,20 @@ data class CameraXState(
     }
 
     /**
-     * Применяет текущие настройки фокуса к камере.
-     * Если задана ручная дистанция, отключает AF и устанавливает её.
-     * Иначе включает автофокус в подходящем режиме.
+     * Applies the current focus settings to the given camera.
+     * If a manual focus distance is set, AF is disabled and that distance is used.
+     * Otherwise, enables auto-focus with a suitable default mode.
      */
     @ExperimentalCamera2Interop
     fun applyFocus(camera: Camera) {
         val builder = CaptureRequestOptions.Builder()
         if (manualFocusDistance != null) {
-            // Ручной фокус: отключаем AF и устанавливаем дистанцию
+            // Manual focus: disable AF and set the distance
             builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
             builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, manualFocusDistance)
         } else {
-            // Автофокус: используем сохранённый режим по умолчанию
-            // Инициализируем режим по умолчанию при первом вызове
+            // Auto focus: use the stored default AF mode.
+            // Initialize the default mode on first call if not already set.
             if (defaultAfMode == null) {
                 selectDefaultAfMode(camera)
             }
@@ -395,6 +395,14 @@ data class CameraXState(
         Camera2CameraControl.from(camera.cameraControl).setCaptureRequestOptions(builder.build())
     }
 
+    /**
+     * Selects a reasonable default auto-focus mode from the camera's available modes.
+     * This is used when no manual focus distance is set and we need to switch back to auto-focus.
+     *
+     * Note: Currently we don't have an API to retrieve the previously active AF mode,
+     * so we pick a sensible mode (CONTINUOUS_PICTURE if available, otherwise AUTO).
+     * This can be improved later if we store the actual mode used before entering manual focus.
+     */
     private fun selectDefaultAfMode(camera: Camera) {
         val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
         val availableAfModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
@@ -404,15 +412,15 @@ data class CameraXState(
             availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_AUTO) == true ->
                 CameraCharacteristics.CONTROL_AF_MODE_AUTO
             else -> {
-                // В крайнем случае оставляем ручной режим, но это не авто
+                // Fallback to manual mode, though this is not ideal.
                 CameraCharacteristics.CONTROL_AF_MODE_OFF
             }
         }
     }
 
     /**
-     * Применяет все ручные настройки (экспозицию и фокус) к камере.
-     * Используется при обновлении жизненного цикла, чтобы восстановить состояние.
+     * Applies all manual settings (exposure and focus) to the camera.
+     * Used during lifecycle updates to restore the state after camera reconfiguration.
      */
     @ExperimentalCamera2Interop
     internal fun applyManualSettingsIfNeeded(camera: Camera) {
