@@ -299,7 +299,28 @@ class AnalysisImageWrapper {
 class ExposureTimeRange {
   final int minMicroseconds;
   final int maxMicroseconds;
+
   const ExposureTimeRange(this.minMicroseconds, this.maxMicroseconds);
+}
+
+class IsoRange {
+  final int minIso;
+  final int maxIso;
+
+  IsoRange({
+    required this.minIso,
+    required this.maxIso,
+  });
+}
+
+class FocusDistanceRange {
+  final double minDistance;
+  final double maxDistance;
+
+  FocusDistanceRange({
+    required this.minDistance,
+    required this.maxDistance,
+  });
 }
 
 @HostApi()
@@ -329,16 +350,18 @@ abstract class AnalysisImageUtils {
 @HostApi()
 abstract class CameraInterface {
   @async
-  bool setupCamera(List<PigeonSensor> sensors,
-      String aspectRatio,
-      double zoom,
-      bool mirrorFrontCamera,
-      bool enablePhysicalButton,
-      String flashMode,
-      String captureMode,
-      bool enableImageStream,
-      ExifPreferences exifPreferences,
-      VideoOptions? videoOptions,);
+  bool setupCamera(
+    List<PigeonSensor> sensors,
+    String aspectRatio,
+    double zoom,
+    bool mirrorFrontCamera,
+    bool enablePhysicalButton,
+    String flashMode,
+    String captureMode,
+    bool enableImageStream,
+    ExifPreferences exifPreferences,
+    VideoOptions? videoOptions,
+  );
 
   List<String> checkPermissions(List<String> permissions);
 
@@ -381,10 +404,12 @@ abstract class CameraInterface {
   ///
   /// On Android, you can control after how much time you want to switch back
   /// to passive focus mode with [androidFocusSettings].
-  void focusOnPoint(PreviewSize previewSize,
-      double x,
-      double y,
-      AndroidFocusSettings? androidFocusSettings,);
+  void focusOnPoint(
+    PreviewSize previewSize,
+    double x,
+    double y,
+    AndroidFocusSettings? androidFocusSettings,
+  );
 
   void setZoom(double zoom);
 
@@ -416,10 +441,12 @@ abstract class CameraInterface {
 
   void setAspectRatio(String aspectRatio);
 
-  void setupImageAnalysisStream(String format,
-      int width,
-      double? maxFramesPerSecond,
-      bool autoStart,);
+  void setupImageAnalysisStream(
+    String format,
+    int width,
+    double? maxFramesPerSecond,
+    bool autoStart,
+  );
 
   @async
   bool setExifPreferences(ExifPreferences exifPreferences);
@@ -448,4 +475,29 @@ abstract class CameraInterface {
   /// The camera will automatically adjust exposure based on scene conditions.
   @async
   void resetExposureToAuto();
+
+  /// ISO control
+  @async
+  bool isManualIsoSupported();
+
+  @async
+  IsoRange? getIsoRange();
+
+  @async
+  void setIso(int iso);
+
+  /// Manual focus (distance) control
+  @async
+  bool isManualFocusSupported();
+
+  @async
+  FocusDistanceRange? getFocusDistanceRange();
+
+  /// Distance in diopters. Must be within range from [getFocusDistanceRange].
+  /// For infinity, pass 0.0.
+  @async
+  void setFocusDistance(double distance);
+
+  @async
+  void resetFocusToAuto();
 }

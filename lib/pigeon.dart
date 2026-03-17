@@ -507,6 +507,58 @@ class ExposureTimeRange {
   }
 }
 
+class IsoRange {
+  IsoRange({
+    required this.minIso,
+    required this.maxIso,
+  });
+
+  int minIso;
+
+  int maxIso;
+
+  Object encode() {
+    return <Object?>[
+      minIso,
+      maxIso,
+    ];
+  }
+
+  static IsoRange decode(Object result) {
+    result as List<Object?>;
+    return IsoRange(
+      minIso: result[0]! as int,
+      maxIso: result[1]! as int,
+    );
+  }
+}
+
+class FocusDistanceRange {
+  FocusDistanceRange({
+    required this.minDistance,
+    required this.maxDistance,
+  });
+
+  double minDistance;
+
+  double maxDistance;
+
+  Object encode() {
+    return <Object?>[
+      minDistance,
+      maxDistance,
+    ];
+  }
+
+  static FocusDistanceRange decode(Object result) {
+    result as List<Object?>;
+    return FocusDistanceRange(
+      minDistance: result[0]! as double,
+      maxDistance: result[1]! as double,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -575,6 +627,12 @@ class _PigeonCodec extends StandardMessageCodec {
     } else     if (value is ExposureTimeRange) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
+    } else     if (value is IsoRange) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    } else     if (value is FocusDistanceRange) {
+      buffer.putUint8(151);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -634,6 +692,10 @@ class _PigeonCodec extends StandardMessageCodec {
         return AnalysisImageWrapper.decode(readValue(buffer)!);
       case 149: 
         return ExposureTimeRange.decode(readValue(buffer)!);
+      case 150: 
+        return IsoRange.decode(readValue(buffer)!);
+      case 151: 
+        return FocusDistanceRange.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1778,8 +1840,178 @@ class CameraInterface {
     }
   }
 
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
   Future<void> resetExposureToAuto() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.resetExposureToAuto$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// ISO control
+  Future<bool> isManualIsoSupported() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.isManualIsoSupported$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  Future<IsoRange?> getIsoRange() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.getIsoRange$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return (pigeonVar_replyList[0] as IsoRange?);
+    }
+  }
+
+  Future<void> setIso(int iso) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.setIso$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[iso]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Manual focus (distance) control
+  Future<bool> isManualFocusSupported() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.isManualFocusSupported$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  Future<FocusDistanceRange?> getFocusDistanceRange() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.getFocusDistanceRange$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return (pigeonVar_replyList[0] as FocusDistanceRange?);
+    }
+  }
+
+  /// Distance in diopters. Must be within range from [getFocusDistanceRange].
+  /// For infinity, pass 0.0.
+  Future<void> setFocusDistance(double distance) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.setFocusDistance$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[distance]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> resetFocusToAuto() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.resetFocusToAuto$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

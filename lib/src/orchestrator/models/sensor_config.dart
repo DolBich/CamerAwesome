@@ -43,6 +43,14 @@ class SensorConfig {
 
   late BehaviorSubject<Duration?> _exposureTimeController;
 
+  /// Stream of current manual ISO value (null if auto).
+  late BehaviorSubject<int?> _isoController;
+  Stream<int?> get iso$ => _isoController.stream;
+
+  /// Stream of current manual focus distance in diopters (null if auto).
+  late BehaviorSubject<double?> _focusDistanceController;
+  Stream<double?> get focusDistance$ => _focusDistanceController.stream;
+
   SensorConfig.single({
     Sensor? sensor,
     FlashMode flashMode = FlashMode.none,
@@ -94,6 +102,9 @@ class SensorConfig {
 
     _exposureTimeController = BehaviorSubject<Duration?>.seeded(null);
     exposureTime$ = _exposureTimeController.stream;
+
+    _isoController = BehaviorSubject<int?>.seeded(null);
+    _focusDistanceController = BehaviorSubject<double?>.seeded(null);
   }
 
   Future<void> setZoom(double zoom) async {
@@ -204,10 +215,64 @@ class SensorConfig {
     _exposureTimeController.add(duration);
   }
 
-  /// Resets exposure control to automatic mode.
+  /// Checks whether manual ISO control is supported on the current device.
+  Future<bool> isManualIsoSupported() {
+    return CamerawesomePlugin.isManualIsoSupported();
+  }
+
+  /// Returns the available ISO range
+  /// If manual ISO is not supported or an error occurs, returns null.
+  Future<IsoRange?> getIsoRange() async {
+    final range = await CamerawesomePlugin.getIsoRange();
+    if (range == null) return null;
+    return IsoRange(minIso: range.minIso, maxIso: range.maxIso);
+  }
+
+  /// Sets a custom ISO value.
+  /// The [iso] must be within the range returned by [getIsoRange].
+  /// Throws an exception if manual ISO is not supported or the value is out of range.
+  Future<void> setIso(int iso) async {
+    await CamerawesomePlugin.setIso(iso);
+    _isoController.add(iso);
+  }
+
+  /// Resets exposure control and ISO to automatic mode.
   /// The camera will automatically adjust exposure based on scene conditions.
   Future<void> resetExposureToAuto() {
     return CamerawesomePlugin.resetExposureToAuto();
+  }
+
+
+  /// Checks whether manual focus (distance) control is supported on the current device.
+  Future<bool> isManualFocusSupported() {
+    return CamerawesomePlugin.isManualFocusSupported();
+  }
+
+  /// Returns the available focus distance range in diopters.
+  /// Range is from [minDistance] (macro) to [maxDistance] (0.0 = infinity).
+  /// If manual focus is not supported or an error occurs, returns null.
+  Future<FocusDistanceRange?> getFocusDistanceRange() async {
+    final range = await CamerawesomePlugin.getFocusDistanceRange();
+    if (range == null) return null;
+    return FocusDistanceRange(
+      minDistance: range.minDistance,
+      maxDistance: range.maxDistance,
+    );
+  }
+
+  /// Sets a custom focus distance.
+  /// The [distance] must be within the range returned by [getFocusDistanceRange].
+  /// Distance is in diopters: 0.0 = infinity, larger values = closer focus.
+  /// Throws an exception if manual focus is not supported or the value is out of range.
+  Future<void> setFocusDistance(double distance) async {
+    await CamerawesomePlugin.setFocusDistance(distance);
+    _focusDistanceController.add(distance);
+  }
+
+  /// Resets focus control to automatic mode.
+  /// The camera will automatically adjust focus based on scene conditions.
+  Future<void> resetFocusToAuto() {
+    return CamerawesomePlugin.resetFocusToAuto();
   }
 
   Duration? get exposureTime => _exposureTimeController.value;
@@ -220,5 +285,7 @@ class SensorConfig {
     _flashModeController.close();
     _aspectRatioController.close();
     _exposureTimeController.close();
+    _isoController.close();
+    _focusDistanceController.close();
   }
 }
