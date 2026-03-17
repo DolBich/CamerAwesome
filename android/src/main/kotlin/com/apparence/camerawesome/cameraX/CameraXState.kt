@@ -58,6 +58,11 @@ data class CameraXState(
     val videoOptions: AndroidVideoOptions?,
 
     var manualExposureTimeNs: Long? = null
+
+    var manualIso: Int? = null,
+
+    var manualFocusDistance: Float? = null
+    var defaultAfMode: Int? = null
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -198,7 +203,7 @@ data class CameraXState(
             concurrentCamera!!.cameras.first().cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
 
             /// Applying manual exposure time for each camera if needed
-            concurrentCamera!!.cameras.forEach { applyManualExposureIfNeeded(it) }
+            concurrentCamera!!.cameras.forEach { applyManualSettingsIfNeeded(it) }
         } else {
             val useCaseGroupBuilder = UseCaseGroup.Builder()
             // Handle single camera
@@ -279,7 +284,7 @@ data class CameraXState(
             previewCamera!!.cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
 
             /// Applying manual exposure time if needed
-            applyManualExposureIfNeeded(previewCamera!!)
+            applyManualSettingsIfNeeded(previewCamera!!)
         }
     }
 
@@ -349,19 +354,71 @@ data class CameraXState(
         }
     }
 
+    /**
+     * Применяет текущие настройки экспозиции (выдержка и ISO) к камере.
+     * Если задана хотя бы одна ручная настройка, отключает AE и устанавливает имеющиеся значения.
+     * Если ни одной нет, включает AE в автоматический режим.
+     */
     @ExperimentalCamera2Interop
-    private fun applyManualExposureIfNeeded(camera: Camera) {
-        manualExposureTimeNs?.let { exposureTime ->
-            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
-            camera2Control.setCaptureRequestOptions(
-                CaptureRequestOptions.Builder()
-                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
-                    .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
-                    .build()
-            )
+    fun applyExposure(camera: Camera) {
+        val builder = CaptureRequestOptions.Builder()
+        if (manualExposureTimeNs != null || manualIso != null) {
+            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+            manualExposureTimeNs?.let { builder.setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, it) }
+            manualIso?.let { builder.setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, it) }
+        } else {
+            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+        }
+        Camera2CameraControl.from(camera.cameraControl).setCaptureRequestOptions(builder.build())
+    }
+
+    /**
+     * Применяет текущие настройки фокуса к камере.
+     * Если задана ручная дистанция, отключает AF и устанавливает её.
+     * Иначе включает автофокус в подходящем режиме.
+     */
+    @ExperimentalCamera2Interop
+    fun applyFocus(camera: Camera) {
+        val builder = CaptureRequestOptions.Builder()
+        if (manualFocusDistance != null) {
+            // Ручной фокус: отключаем AF и устанавливаем дистанцию
+            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
+            builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, manualFocusDistance)
+        } else {
+            // Автофокус: используем сохранённый режим по умолчанию
+            // Инициализируем режим по умолчанию при первом вызове
+            if (defaultAfMode == null) {
+                selectDefaultAfMode(camera)
+            }
+            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, defaultAfMode!!)
+        }
+        Camera2CameraControl.from(camera.cameraControl).setCaptureRequestOptions(builder.build())
+    }
+
+    private fun selectDefaultAfMode(camera: Camera) {
+        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+        val availableAfModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
+        defaultAfMode = when {
+            availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE) == true ->
+                CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+            availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_AUTO) == true ->
+                CameraCharacteristics.CONTROL_AF_MODE_AUTO
+            else -> {
+                // В крайнем случае оставляем ручной режим, но это не авто
+                CameraCharacteristics.CONTROL_AF_MODE_OFF
+            }
         }
     }
 
+    /**
+     * Применяет все ручные настройки (экспозицию и фокус) к камере.
+     * Используется при обновлении жизненного цикла, чтобы восстановить состояние.
+     */
+    @ExperimentalCamera2Interop
+    internal fun applyManualSettingsIfNeeded(camera: Camera) {
+        applyExposure(camera)
+        applyFocus(camera)
+    }
 
     fun setLinearZoom(zoom: Float) {
         mainCameraControl.setLinearZoom(zoom)

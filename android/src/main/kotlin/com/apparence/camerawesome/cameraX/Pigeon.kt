@@ -514,6 +514,48 @@ data class ExposureTimeRange (
     )
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class IsoRange (
+  val minIso: Long,
+  val maxIso: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): IsoRange {
+      val minIso = pigeonVar_list[0].let { num -> if (num is Int) num.toLong() else num as Long }
+      val maxIso = pigeonVar_list[1].let { num -> if (num is Int) num.toLong() else num as Long }
+      return IsoRange(minIso, maxIso)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      minIso,
+      maxIso,
+    )
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class FocusDistanceRange (
+  val minDistance: Double,
+  val maxDistance: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FocusDistanceRange {
+      val minDistance = pigeonVar_list[0] as Double
+      val maxDistance = pigeonVar_list[1] as Double
+      return FocusDistanceRange(minDistance, maxDistance)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      minDistance,
+      maxDistance,
+    )
+  }
+}
 private object PigeonPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -622,6 +664,16 @@ private object PigeonPigeonCodec : StandardMessageCodec() {
           ExposureTimeRange.fromList(it)
         }
       }
+      150.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          IsoRange.fromList(it)
+        }
+      }
+      151.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          FocusDistanceRange.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -709,6 +761,14 @@ private object PigeonPigeonCodec : StandardMessageCodec() {
       }
       is ExposureTimeRange -> {
         stream.write(149)
+        writeValue(stream, value.toList())
+      }
+      is IsoRange -> {
+        stream.write(150)
+        writeValue(stream, value.toList())
+      }
+      is FocusDistanceRange -> {
+        stream.write(151)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -872,7 +932,24 @@ interface CameraInterface {
   fun getExposureTimeRange(callback: (Result<ExposureTimeRange>) -> Unit)
   fun isManualExposureSupported(callback: (Result<Boolean>) -> Unit)
   fun setExposureTime(durationMicros: Long, callback: (Result<Unit>) -> Unit)
+  /**
+   * Resets exposure control to automatic mode.
+   * The camera will automatically adjust exposure based on scene conditions.
+   */
   fun resetExposureToAuto(callback: (Result<Unit>) -> Unit)
+  /** ISO control */
+  fun isManualIsoSupported(callback: (Result<Boolean>) -> Unit)
+  fun getIsoRange(callback: (Result<IsoRange?>) -> Unit)
+  fun setIso(iso: Long, callback: (Result<Unit>) -> Unit)
+  /** Manual focus (distance) control */
+  fun isManualFocusSupported(callback: (Result<Boolean>) -> Unit)
+  fun getFocusDistanceRange(callback: (Result<FocusDistanceRange?>) -> Unit)
+  /**
+   * Distance in diopters. Must be within range from [getFocusDistanceRange].
+   * For infinity, pass 0.0.
+   */
+  fun setFocusDistance(distance: Double, callback: (Result<Unit>) -> Unit)
+  fun resetFocusToAuto(callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by CameraInterface. */
@@ -1616,6 +1693,133 @@ interface CameraInterface {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.resetExposureToAuto{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.isManualIsoSupported$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.isManualIsoSupported{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.getIsoRange$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getIsoRange{ result: Result<IsoRange?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.setIso$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val isoArg = args[0].let { num -> if (num is Int) num.toLong() else num as Long }
+            api.setIso(isoArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.isManualFocusSupported$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.isManualFocusSupported{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.getFocusDistanceRange$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getFocusDistanceRange{ result: Result<FocusDistanceRange?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.setFocusDistance$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val distanceArg = args[0] as Double
+            api.setFocusDistance(distanceArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.resetFocusToAuto$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.resetFocusToAuto{ result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

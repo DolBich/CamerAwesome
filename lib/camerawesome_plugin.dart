@@ -544,9 +544,37 @@ class CamerawesomePlugin {
       CameraInterface().setExposureTime(duration.inMicroseconds);
   }
 
-  /// Resets exposure control to automatic mode.
+  static Future<bool> isManualIsoSupported() async {
+    return CameraInterface().isManualIsoSupported();
+  }
+
+  static Future<IsoRange?> getIsoRange() async {
+    return CameraInterface().getIsoRange();
+  }
+
+  static Future<void> setIso(int iso) async {
+    CameraInterface().setIso(iso);
+  }
+
+  /// Resets exposure and ISO control to automatic mode.
   /// The camera will automatically adjust exposure based on scene conditions.
   static Future<void> resetExposureToAuto() async {
-      CameraInterface().resetExposureToAuto();
+    CameraInterface().resetExposureToAuto();
+  }
+
+  static Future<bool> isManualFocusSupported() async {
+    return CameraInterface().isManualFocusSupported();
+  }
+
+  static Future<FocusDistanceRange?> getFocusDistanceRange() async {
+    return CameraInterface().getFocusDistanceRange();
+  }
+
+  static Future<void> setFocusDistance(double distance) async {
+    CameraInterface().setFocusDistance(distance);
+  }
+
+  static Future<void> resetFocusToAuto() async {
+    CameraInterface().resetFocusToAuto();
   }
 }

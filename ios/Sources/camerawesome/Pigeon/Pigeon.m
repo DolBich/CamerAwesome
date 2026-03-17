@@ -198,6 +198,18 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 - (NSArray<id> *)toList;
 @end
 
+@interface IsoRange ()
++ (IsoRange *)fromList:(NSArray<id> *)list;
++ (nullable IsoRange *)nullableFromList:(NSArray<id> *)list;
+- (NSArray<id> *)toList;
+@end
+
+@interface FocusDistanceRange ()
++ (FocusDistanceRange *)fromList:(NSArray<id> *)list;
++ (nullable FocusDistanceRange *)nullableFromList:(NSArray<id> *)list;
+- (NSArray<id> *)toList;
+@end
+
 @implementation PreviewSize
 + (instancetype)makeWithWidth:(double )width
     height:(double )height {
@@ -562,6 +574,56 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 }
 @end
 
+@implementation IsoRange
++ (instancetype)makeWithMinIso:(NSInteger )minIso
+    maxIso:(NSInteger )maxIso {
+  IsoRange* pigeonResult = [[IsoRange alloc] init];
+  pigeonResult.minIso = minIso;
+  pigeonResult.maxIso = maxIso;
+  return pigeonResult;
+}
++ (IsoRange *)fromList:(NSArray<id> *)list {
+  IsoRange *pigeonResult = [[IsoRange alloc] init];
+  pigeonResult.minIso = [GetNullableObjectAtIndex(list, 0) integerValue];
+  pigeonResult.maxIso = [GetNullableObjectAtIndex(list, 1) integerValue];
+  return pigeonResult;
+}
++ (nullable IsoRange *)nullableFromList:(NSArray<id> *)list {
+  return (list) ? [IsoRange fromList:list] : nil;
+}
+- (NSArray<id> *)toList {
+  return @[
+    @(self.minIso),
+    @(self.maxIso),
+  ];
+}
+@end
+
+@implementation FocusDistanceRange
++ (instancetype)makeWithMinDistance:(double )minDistance
+    maxDistance:(double )maxDistance {
+  FocusDistanceRange* pigeonResult = [[FocusDistanceRange alloc] init];
+  pigeonResult.minDistance = minDistance;
+  pigeonResult.maxDistance = maxDistance;
+  return pigeonResult;
+}
++ (FocusDistanceRange *)fromList:(NSArray<id> *)list {
+  FocusDistanceRange *pigeonResult = [[FocusDistanceRange alloc] init];
+  pigeonResult.minDistance = [GetNullableObjectAtIndex(list, 0) doubleValue];
+  pigeonResult.maxDistance = [GetNullableObjectAtIndex(list, 1) doubleValue];
+  return pigeonResult;
+}
++ (nullable FocusDistanceRange *)nullableFromList:(NSArray<id> *)list {
+  return (list) ? [FocusDistanceRange fromList:list] : nil;
+}
+- (NSArray<id> *)toList {
+  return @[
+    @(self.minDistance),
+    @(self.maxDistance),
+  ];
+}
+@end
+
 @interface nullPigeonPigeonCodecReader : FlutterStandardReader
 @end
 @implementation nullPigeonPigeonCodecReader
@@ -627,6 +689,10 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
       return [AnalysisImageWrapper fromList:[self readValue]];
     case 149: 
       return [ExposureTimeRange fromList:[self readValue]];
+    case 150: 
+      return [IsoRange fromList:[self readValue]];
+    case 151: 
+      return [FocusDistanceRange fromList:[self readValue]];
     default:
       return [super readValueOfType:type];
   }
@@ -708,6 +774,12 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
     [self writeValue:[value toList]];
   } else if ([value isKindOfClass:[ExposureTimeRange class]]) {
     [self writeByte:149];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[IsoRange class]]) {
+    [self writeByte:150];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[FocusDistanceRange class]]) {
+    [self writeByte:151];
     [self writeValue:[value toList]];
   } else {
     [super writeValue:value];
@@ -1594,6 +1666,8 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
       [channel setMessageHandler:nil];
     }
   }
+  /// Resets exposure control to automatic mode.
+  /// The camera will automatically adjust exposure based on scene conditions.
   {
     FlutterBasicMessageChannel *channel =
       [[FlutterBasicMessageChannel alloc]
@@ -1604,6 +1678,133 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
       NSCAssert([api respondsToSelector:@selector(resetExposureToAutoWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(resetExposureToAutoWithCompletion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         [api resetExposureToAutoWithCompletion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  /// ISO control
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.isManualIsoSupported", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(isManualIsoSupportedWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(isManualIsoSupportedWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api isManualIsoSupportedWithCompletion:^(NSNumber *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.getIsoRange", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(getIsoRangeWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(getIsoRangeWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api getIsoRangeWithCompletion:^(IsoRange *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.setIso", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setIsoIso:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setIsoIso:completion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray<id> *args = message;
+        NSInteger arg_iso = [GetNullableObjectAtIndex(args, 0) integerValue];
+        [api setIsoIso:arg_iso completion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  /// Manual focus (distance) control
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.isManualFocusSupported", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(isManualFocusSupportedWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(isManualFocusSupportedWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api isManualFocusSupportedWithCompletion:^(NSNumber *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.getFocusDistanceRange", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(getFocusDistanceRangeWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(getFocusDistanceRangeWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api getFocusDistanceRangeWithCompletion:^(FocusDistanceRange *_Nullable output, FlutterError *_Nullable error) {
+          callback(wrapResult(output, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  /// Distance in diopters. Must be within range from [getFocusDistanceRange].
+  /// For infinity, pass 0.0.
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.setFocusDistance", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setFocusDistanceDistance:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setFocusDistanceDistance:completion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray<id> *args = message;
+        double arg_distance = [GetNullableObjectAtIndex(args, 0) doubleValue];
+        [api setFocusDistanceDistance:arg_distance completion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.resetFocusToAuto", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(resetFocusToAutoWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(resetFocusToAutoWithCompletion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        [api resetFocusToAutoWithCompletion:^(FlutterError *_Nullable error) {
           callback(wrapResult(nil, error));
         }];
       }];

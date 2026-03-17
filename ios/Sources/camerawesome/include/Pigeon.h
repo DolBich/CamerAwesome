@@ -163,6 +163,8 @@ typedef NS_ENUM(NSUInteger, AnalysisRotation) {
 @class CropRectWrapper;
 @class AnalysisImageWrapper;
 @class ExposureTimeRange;
+@class IsoRange;
+@class FocusDistanceRange;
 
 @interface PreviewSize : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
@@ -316,6 +318,24 @@ typedef NS_ENUM(NSUInteger, AnalysisRotation) {
 @property(nonatomic, assign) NSInteger  maxMicroseconds;
 @end
 
+@interface IsoRange : NSObject
+/// `init` unavailable to enforce nonnull fields, see the `make` class method.
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)makeWithMinIso:(NSInteger )minIso
+    maxIso:(NSInteger )maxIso;
+@property(nonatomic, assign) NSInteger  minIso;
+@property(nonatomic, assign) NSInteger  maxIso;
+@end
+
+@interface FocusDistanceRange : NSObject
+/// `init` unavailable to enforce nonnull fields, see the `make` class method.
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)makeWithMinDistance:(double )minDistance
+    maxDistance:(double )maxDistance;
+@property(nonatomic, assign) double  minDistance;
+@property(nonatomic, assign) double  maxDistance;
+@end
+
 /// The codec used by all APIs.
 NSObject<FlutterMessageCodec> *nullGetPigeonCodec(void);
 
@@ -389,7 +409,20 @@ extern void SetUpAnalysisImageUtilsWithSuffix(id<FlutterBinaryMessenger> binaryM
 - (void)getExposureTimeRangeWithCompletion:(void (^)(ExposureTimeRange *_Nullable, FlutterError *_Nullable))completion;
 - (void)isManualExposureSupportedWithCompletion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
 - (void)setExposureTimeDurationMicros:(NSInteger)durationMicros completion:(void (^)(FlutterError *_Nullable))completion;
+/// Resets exposure control to automatic mode.
+/// The camera will automatically adjust exposure based on scene conditions.
 - (void)resetExposureToAutoWithCompletion:(void (^)(FlutterError *_Nullable))completion;
+/// ISO control
+- (void)isManualIsoSupportedWithCompletion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
+- (void)getIsoRangeWithCompletion:(void (^)(IsoRange *_Nullable, FlutterError *_Nullable))completion;
+- (void)setIsoIso:(NSInteger)iso completion:(void (^)(FlutterError *_Nullable))completion;
+/// Manual focus (distance) control
+- (void)isManualFocusSupportedWithCompletion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
+- (void)getFocusDistanceRangeWithCompletion:(void (^)(FocusDistanceRange *_Nullable, FlutterError *_Nullable))completion;
+/// Distance in diopters. Must be within range from [getFocusDistanceRange].
+/// For infinity, pass 0.0.
+- (void)setFocusDistanceDistance:(double)distance completion:(void (^)(FlutterError *_Nullable))completion;
+- (void)resetFocusToAutoWithCompletion:(void (^)(FlutterError *_Nullable))completion;
 @end
 
 extern void SetUpCameraInterface(id<FlutterBinaryMessenger> binaryMessenger, NSObject<CameraInterface> *_Nullable api);
