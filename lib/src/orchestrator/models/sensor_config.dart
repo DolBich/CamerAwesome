@@ -20,8 +20,6 @@ class SensorConfig {
 
   late Stream<CameraAspectRatios> aspectRatio$;
 
-  late Stream<Duration?> exposureTime$;
-
   /// Zoom from native side. Must be between 0.0 and 1.0
   late Stream<double> zoom$;
 
@@ -42,14 +40,18 @@ class SensorConfig {
   StreamSubscription? _brightnessSubscription;
 
   late BehaviorSubject<Duration?> _exposureTimeController;
+  late Stream<Duration?> exposureTime$;
+  Duration? get exposureTime => _exposureTimeController.value;
 
   /// Stream of current manual ISO value (null if auto).
   late BehaviorSubject<int?> _isoController;
   Stream<int?> get iso$ => _isoController.stream;
+  int? get iso => _isoController.value;
 
   /// Stream of current manual focus distance in diopters (null if auto).
   late BehaviorSubject<double?> _focusDistanceController;
   Stream<double?> get focusDistance$ => _focusDistanceController.stream;
+  double? get focus => _focusDistanceController.value;
 
   SensorConfig.single({
     Sensor? sensor,
@@ -274,8 +276,6 @@ class SensorConfig {
   Future<void> resetFocusToAuto() {
     return CamerawesomePlugin.resetFocusToAuto();
   }
-
-  Duration? get exposureTime => _exposureTimeController.value;
 
   void dispose() {
     _brightnessSubscription?.cancel();
