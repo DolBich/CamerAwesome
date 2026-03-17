@@ -380,10 +380,11 @@ data class CameraXState(
     @ExperimentalCamera2Interop
     fun applyFocus(camera: Camera) {
         val builder = CaptureRequestOptions.Builder()
-        if (manualFocusDistance != null) {
+        val distance = manualFocusDistance  // локальная копия
+        if (distance != null) {
             // Manual focus: disable AF and set the distance
             builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
-            builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, manualFocusDistance)
+            builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, distance)
         } else {
             // Auto focus: use the stored default AF mode.
             // Initialize the default mode on first call if not already set.
