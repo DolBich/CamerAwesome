@@ -137,6 +137,7 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         enableImageStream: Boolean,
         exifPreferences: ExifPreferences,
         videoOptions: VideoOptions?,
+        absoluteZoom: Double?,
         callback: (Result<Boolean>) -> Unit
     ) {
         if (enablePhysicalButton) {
@@ -177,11 +178,21 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         if (mode != CaptureModes.ANALYSIS_ONLY) {
             cameraState.updateLifecycle(activity!!)
             // Zoom should be set after updateLifeCycle
+            var activeCameraControl = (cameraState.concurrentCamera?.cameras?.firstOrNull()
+                ?: cameraState.previewCamera)?.cameraControl
+
             if (zoom > 0) {
                 // TODO Find a better way to set initial zoom than using a postDelayed
                 Handler(Looper.getMainLooper()).postDelayed({
-                    (cameraState.concurrentCamera?.cameras?.firstOrNull()
-                        ?: cameraState.previewCamera)?.cameraControl?.setLinearZoom(zoom.toFloat())
+                    activeCameraControl?.setLinearZoom(zoom.toFloat())
+                }, 200)
+            }
+
+            // New absolute zoom
+            if (absoluteZoom != null) {
+                cameraState.manualZoomRatio = absoluteZoom.toFloat()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    activeCameraControl?.setZoomRatio(absoluteZoom.toFloat())
                 }, 200)
             }
         }
@@ -1162,6 +1173,49 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
             cameraState.manualFocusDistance = null
             cameraState.applyFocus(camera)  // switches to auto‑focus using defaultAfMode
 
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+        callback(result)
+    }
+
+    // ==================== ZOOM ====================
+    /**
+     * Returns the absolute zoom range (min/max ratio) of the currently active camera.
+     */
+    override fun getZoomRange(): ZoomRange {
+        val camera = getCurrentCamera()
+            ?: throw IllegalStateException("Camera not initialized")
+
+        // zoomState can't be null if camera is initialized
+        val zoomState = camera.cameraInfo.zoomState.value!!
+        return ZoomRange(
+            minZoom = zoomState.minZoomRatio.toDouble(),
+            maxZoom = zoomState.maxZoomRatio.toDouble()
+        )
+    }
+
+
+    /**
+     * Sets an absolute zoom ratio on the active camera.
+     * Validates that [zoom] is within the supported range.
+     */
+    @SuppressLint("RestrictedApi")
+    override fun setZoomAbsolute(zoom: Double, callback: (Result<Unit>) -> Unit) {
+        val result = try {
+            val camera = getCurrentCamera()
+                ?: throw IllegalStateException("Camera not initialized")
+
+            // zoomState can't be null if camera is initialized
+            val zoomState = camera.cameraInfo.zoomState.value!!
+            if (zoom < zoomState.minZoomRatio || zoom > zoomState.maxZoomRatio) {
+                throw IllegalArgumentException(
+                    "Zoom ratio $zoom is out of range [${zoomState.minZoomRatio}, ${zoomState.maxZoomRatio}]"
+                )
+            }
+            camera.cameraControl.setZoomRatio(zoom.toFloat())
+            cameraState.manualZoomRatio = zoom.toFloat()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

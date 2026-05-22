@@ -323,6 +323,13 @@ class FocusDistanceRange {
   });
 }
 
+class ZoomRange {
+  final double minZoom;
+  final double maxZoom;
+
+  const ZoomRange({required this.minZoom, required this.maxZoom});
+}
+
 @HostApi()
 abstract class AnalysisImageUtils {
   @async
@@ -361,7 +368,8 @@ abstract class CameraInterface {
     bool enableImageStream,
     ExifPreferences exifPreferences,
     VideoOptions? videoOptions,
-  );
+      double? absoluteZoom,
+      );
 
   List<String> checkPermissions(List<String> permissions);
 
@@ -500,4 +508,14 @@ abstract class CameraInterface {
 
   @async
   void resetFocusToAuto();
+
+  /// Returns the absolute zoom range supported by the current camera.
+  /// The values represent real zoom ratios (e.g., 1.0 is no zoom, 2.0 is 2x).
+  ZoomRange getZoomRange();
+
+  /// Sets an absolute zoom ratio.
+  /// [zoom] must be within the range returned by [getZoomRange].
+  /// Throws an exception if the camera is not initialised or value out of range.
+  @async
+  void setZoomAbsolute(double zoom);
 }

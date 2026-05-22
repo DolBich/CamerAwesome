@@ -63,6 +63,7 @@ data class CameraXState(
 
     var manualFocusDistance: Float? = null,
     var defaultAfMode: Int? = null,
+    var manualZoomRatio: Float? = null,
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -204,6 +205,11 @@ data class CameraXState(
 
             /// Applying manual exposure time for each camera if needed
             concurrentCamera!!.cameras.forEach { applyManualSettingsIfNeeded(it) }
+
+            // Applying manual absolute zoom
+            manualZoomRatio?.let { zoomRatio ->
+                (concurrentCamera?.cameras?.firstOrNull() ?: previewCamera)
+                    ?.cameraControl?.setZoomRatio(zoomRatio)}
         } else {
             val useCaseGroupBuilder = UseCaseGroup.Builder()
             // Handle single camera
@@ -285,6 +291,11 @@ data class CameraXState(
 
             /// Applying manual exposure time if needed
             applyManualSettingsIfNeeded(previewCamera!!)
+
+            // Applying manual absolute zoom
+            manualZoomRatio?.let { zoomRatio ->
+                (concurrentCamera?.cameras?.firstOrNull() ?: previewCamera)
+                    ?.cameraControl?.setZoomRatio(zoomRatio)}
         }
     }
 

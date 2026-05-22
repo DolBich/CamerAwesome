@@ -200,6 +200,7 @@ class CamerawesomePlugin {
           enableImageStream,
           exifPreferences,
           videoOptions,
+          sensorConfig.absoluteZoom,
         )
         .then((value) => true);
   }
@@ -528,20 +529,20 @@ class CamerawesomePlugin {
 
   /// Checks if manual exposure control is supported on the current device.
   static Future<bool> isManualExposureSupported() async {
-      return CameraInterface().isManualExposureSupported();
+    return CameraInterface().isManualExposureSupported();
   }
 
   /// Returns the available exposure time range in microseconds.
   /// Returns null if manual exposure is not supported or an error occurs.
   static Future<ExposureTimeRange?> getExposureTimeRange() async {
-      return CameraInterface().getExposureTimeRange();
+    return CameraInterface().getExposureTimeRange();
   }
 
   /// Sets a custom exposure time.
   /// [duration] must be within the range returned by [getExposureTimeRange].
   /// Throws an exception if manual exposure is not supported or value out of range.
   static Future<void> setExposureTime(Duration duration) async {
-      CameraInterface().setExposureTime(duration.inMicroseconds);
+    CameraInterface().setExposureTime(duration.inMicroseconds);
   }
 
   static Future<bool> isManualIsoSupported() async {
@@ -576,5 +577,16 @@ class CamerawesomePlugin {
 
   static Future<void> resetFocusToAuto() async {
     CameraInterface().resetFocusToAuto();
+  }
+
+  /// Returns the absolute zoom range of the currently active camera.
+  static Future<ZoomRange> getZoomRange() async {
+    return CameraInterface().getZoomRange();
+  }
+
+  /// Sets an absolute zoom ratio.
+  /// The value must be within the range returned by [getZoomRange].
+  static Future<void> setZoomAbsolute(double zoom) async {
+    return CameraInterface().setZoomAbsolute(zoom);
   }
 }

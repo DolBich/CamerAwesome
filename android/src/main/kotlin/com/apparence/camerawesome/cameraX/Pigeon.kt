@@ -556,6 +556,27 @@ data class FocusDistanceRange (
     )
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class ZoomRange (
+  val minZoom: Double,
+  val maxZoom: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ZoomRange {
+      val minZoom = pigeonVar_list[0] as Double
+      val maxZoom = pigeonVar_list[1] as Double
+      return ZoomRange(minZoom, maxZoom)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      minZoom,
+      maxZoom,
+    )
+  }
+}
 private object PigeonPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -674,6 +695,11 @@ private object PigeonPigeonCodec : StandardMessageCodec() {
           FocusDistanceRange.fromList(it)
         }
       }
+      152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ZoomRange.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -769,6 +795,10 @@ private object PigeonPigeonCodec : StandardMessageCodec() {
       }
       is FocusDistanceRange -> {
         stream.write(151)
+        writeValue(stream, value.toList())
+      }
+      is ZoomRange -> {
+        stream.write(152)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -881,7 +911,7 @@ interface AnalysisImageUtils {
 }
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface CameraInterface {
-  fun setupCamera(sensors: List<PigeonSensor>, aspectRatio: String, zoom: Double, mirrorFrontCamera: Boolean, enablePhysicalButton: Boolean, flashMode: String, captureMode: String, enableImageStream: Boolean, exifPreferences: ExifPreferences, videoOptions: VideoOptions?, callback: (Result<Boolean>) -> Unit)
+  fun setupCamera(sensors: List<PigeonSensor>, aspectRatio: String, zoom: Double, mirrorFrontCamera: Boolean, enablePhysicalButton: Boolean, flashMode: String, captureMode: String, enableImageStream: Boolean, exifPreferences: ExifPreferences, videoOptions: VideoOptions?, absoluteZoom: Double?, callback: (Result<Boolean>) -> Unit)
   fun checkPermissions(permissions: List<String>): List<String>
   /**
    * Returns given [CamerAwesomePermission] list (as String). Location permission might be
@@ -950,6 +980,17 @@ interface CameraInterface {
    */
   fun setFocusDistance(distance: Double, callback: (Result<Unit>) -> Unit)
   fun resetFocusToAuto(callback: (Result<Unit>) -> Unit)
+  /**
+   * Returns the absolute zoom range supported by the current camera.
+   * The values represent real zoom ratios (e.g., 1.0 is no zoom, 2.0 is 2x).
+   */
+  fun getZoomRange(): ZoomRange
+  /**
+   * Sets an absolute zoom ratio.
+   * [zoom] must be within the range returned by [getZoomRange].
+   * Throws an exception if the camera is not initialised or value out of range.
+   */
+  fun setZoomAbsolute(zoom: Double, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by CameraInterface. */
@@ -975,7 +1016,8 @@ interface CameraInterface {
             val enableImageStreamArg = args[7] as Boolean
             val exifPreferencesArg = args[8] as ExifPreferences
             val videoOptionsArg = args[9] as VideoOptions?
-            api.setupCamera(sensorsArg, aspectRatioArg, zoomArg, mirrorFrontCameraArg, enablePhysicalButtonArg, flashModeArg, captureModeArg, enableImageStreamArg, exifPreferencesArg, videoOptionsArg) { result: Result<Boolean> ->
+            val absoluteZoomArg = args[10] as Double?
+            api.setupCamera(sensorsArg, aspectRatioArg, zoomArg, mirrorFrontCameraArg, enablePhysicalButtonArg, flashModeArg, captureModeArg, enableImageStreamArg, exifPreferencesArg, videoOptionsArg, absoluteZoomArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -1820,6 +1862,40 @@ interface CameraInterface {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.resetFocusToAuto{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.getZoomRange$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getZoomRange())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.camerawesome.CameraInterface.setZoomAbsolute$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val zoomArg = args[0] as Double
+            api.setZoomAbsolute(zoomArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

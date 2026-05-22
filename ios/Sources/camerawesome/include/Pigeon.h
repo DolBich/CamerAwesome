@@ -165,6 +165,7 @@ typedef NS_ENUM(NSUInteger, AnalysisRotation) {
 @class ExposureTimeRange;
 @class IsoRange;
 @class FocusDistanceRange;
+@class ZoomRange;
 
 @interface PreviewSize : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
@@ -336,6 +337,15 @@ typedef NS_ENUM(NSUInteger, AnalysisRotation) {
 @property(nonatomic, assign) double  maxDistance;
 @end
 
+@interface ZoomRange : NSObject
+/// `init` unavailable to enforce nonnull fields, see the `make` class method.
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)makeWithMinZoom:(double )minZoom
+    maxZoom:(double )maxZoom;
+@property(nonatomic, assign) double  minZoom;
+@property(nonatomic, assign) double  maxZoom;
+@end
+
 /// The codec used by all APIs.
 NSObject<FlutterMessageCodec> *nullGetPigeonCodec(void);
 
@@ -352,7 +362,7 @@ extern void SetUpAnalysisImageUtilsWithSuffix(id<FlutterBinaryMessenger> binaryM
 
 
 @protocol CameraInterface
-- (void)setupCameraSensors:(NSArray<PigeonSensor *> *)sensors aspectRatio:(NSString *)aspectRatio zoom:(double)zoom mirrorFrontCamera:(BOOL)mirrorFrontCamera enablePhysicalButton:(BOOL)enablePhysicalButton flashMode:(NSString *)flashMode captureMode:(NSString *)captureMode enableImageStream:(BOOL)enableImageStream exifPreferences:(ExifPreferences *)exifPreferences videoOptions:(nullable VideoOptions *)videoOptions completion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
+- (void)setupCameraSensors:(NSArray<PigeonSensor *> *)sensors aspectRatio:(NSString *)aspectRatio zoom:(double)zoom mirrorFrontCamera:(BOOL)mirrorFrontCamera enablePhysicalButton:(BOOL)enablePhysicalButton flashMode:(NSString *)flashMode captureMode:(NSString *)captureMode enableImageStream:(BOOL)enableImageStream exifPreferences:(ExifPreferences *)exifPreferences videoOptions:(nullable VideoOptions *)videoOptions absoluteZoom:(nullable NSNumber *)absoluteZoom completion:(void (^)(NSNumber *_Nullable, FlutterError *_Nullable))completion;
 /// @return `nil` only when `error != nil`.
 - (nullable NSArray<NSString *> *)checkPermissionsPermissions:(NSArray<NSString *> *)permissions error:(FlutterError *_Nullable *_Nonnull)error;
 /// Returns given [CamerAwesomePermission] list (as String). Location permission might be
@@ -423,6 +433,15 @@ extern void SetUpAnalysisImageUtilsWithSuffix(id<FlutterBinaryMessenger> binaryM
 /// For infinity, pass 0.0.
 - (void)setFocusDistanceDistance:(double)distance completion:(void (^)(FlutterError *_Nullable))completion;
 - (void)resetFocusToAutoWithCompletion:(void (^)(FlutterError *_Nullable))completion;
+/// Returns the absolute zoom range supported by the current camera.
+/// The values represent real zoom ratios (e.g., 1.0 is no zoom, 2.0 is 2x).
+///
+/// @return `nil` only when `error != nil`.
+- (nullable ZoomRange *)getZoomRangeWithError:(FlutterError *_Nullable *_Nonnull)error;
+/// Sets an absolute zoom ratio.
+/// [zoom] must be within the range returned by [getZoomRange].
+/// Throws an exception if the camera is not initialised or value out of range.
+- (void)setZoomAbsoluteZoom:(double)zoom completion:(void (^)(FlutterError *_Nullable))completion;
 @end
 
 extern void SetUpCameraInterface(id<FlutterBinaryMessenger> binaryMessenger, NSObject<CameraInterface> *_Nullable api);

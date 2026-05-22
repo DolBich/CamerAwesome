@@ -559,6 +559,32 @@ class FocusDistanceRange {
   }
 }
 
+class ZoomRange {
+  ZoomRange({
+    required this.minZoom,
+    required this.maxZoom,
+  });
+
+  double minZoom;
+
+  double maxZoom;
+
+  Object encode() {
+    return <Object?>[
+      minZoom,
+      maxZoom,
+    ];
+  }
+
+  static ZoomRange decode(Object result) {
+    result as List<Object?>;
+    return ZoomRange(
+      minZoom: result[0]! as double,
+      maxZoom: result[1]! as double,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -633,6 +659,9 @@ class _PigeonCodec extends StandardMessageCodec {
     } else     if (value is FocusDistanceRange) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
+    } else     if (value is ZoomRange) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -696,6 +725,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return IsoRange.decode(readValue(buffer)!);
       case 151: 
         return FocusDistanceRange.decode(readValue(buffer)!);
+      case 152: 
+        return ZoomRange.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -837,7 +868,7 @@ class CameraInterface {
 
   final String pigeonVar_messageChannelSuffix;
 
-  Future<bool> setupCamera(List<PigeonSensor?> sensors, String aspectRatio, double zoom, bool mirrorFrontCamera, bool enablePhysicalButton, String flashMode, String captureMode, bool enableImageStream, ExifPreferences exifPreferences, VideoOptions? videoOptions) async {
+  Future<bool> setupCamera(List<PigeonSensor?> sensors, String aspectRatio, double zoom, bool mirrorFrontCamera, bool enablePhysicalButton, String flashMode, String captureMode, bool enableImageStream, ExifPreferences exifPreferences, VideoOptions? videoOptions, double? absoluteZoom) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.setupCamera$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -845,7 +876,7 @@ class CameraInterface {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final List<Object?>? pigeonVar_replyList =
-        await pigeonVar_channel.send(<Object?>[sensors, aspectRatio, zoom, mirrorFrontCamera, enablePhysicalButton, flashMode, captureMode, enableImageStream, exifPreferences, videoOptions]) as List<Object?>?;
+        await pigeonVar_channel.send(<Object?>[sensors, aspectRatio, zoom, mirrorFrontCamera, enablePhysicalButton, flashMode, captureMode, enableImageStream, exifPreferences, videoOptions, absoluteZoom]) as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
     } else if (pigeonVar_replyList.length > 1) {
@@ -2019,6 +2050,60 @@ class CameraInterface {
     );
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Returns the absolute zoom range supported by the current camera.
+  /// The values represent real zoom ratios (e.g., 1.0 is no zoom, 2.0 is 2x).
+  Future<ZoomRange> getZoomRange() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.getZoomRange$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as ZoomRange?)!;
+    }
+  }
+
+  /// Sets an absolute zoom ratio.
+  /// [zoom] must be within the range returned by [getZoomRange].
+  /// Throws an exception if the camera is not initialised or value out of range.
+  Future<void> setZoomAbsolute(double zoom) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.camerawesome.CameraInterface.setZoomAbsolute$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[zoom]) as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
     } else if (pigeonVar_replyList.length > 1) {

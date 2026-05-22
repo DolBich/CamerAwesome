@@ -210,6 +210,12 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 - (NSArray<id> *)toList;
 @end
 
+@interface ZoomRange ()
++ (ZoomRange *)fromList:(NSArray<id> *)list;
++ (nullable ZoomRange *)nullableFromList:(NSArray<id> *)list;
+- (NSArray<id> *)toList;
+@end
+
 @implementation PreviewSize
 + (instancetype)makeWithWidth:(double )width
     height:(double )height {
@@ -624,6 +630,31 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
 }
 @end
 
+@implementation ZoomRange
++ (instancetype)makeWithMinZoom:(double )minZoom
+    maxZoom:(double )maxZoom {
+  ZoomRange* pigeonResult = [[ZoomRange alloc] init];
+  pigeonResult.minZoom = minZoom;
+  pigeonResult.maxZoom = maxZoom;
+  return pigeonResult;
+}
++ (ZoomRange *)fromList:(NSArray<id> *)list {
+  ZoomRange *pigeonResult = [[ZoomRange alloc] init];
+  pigeonResult.minZoom = [GetNullableObjectAtIndex(list, 0) doubleValue];
+  pigeonResult.maxZoom = [GetNullableObjectAtIndex(list, 1) doubleValue];
+  return pigeonResult;
+}
++ (nullable ZoomRange *)nullableFromList:(NSArray<id> *)list {
+  return (list) ? [ZoomRange fromList:list] : nil;
+}
+- (NSArray<id> *)toList {
+  return @[
+    @(self.minZoom),
+    @(self.maxZoom),
+  ];
+}
+@end
+
 @interface nullPigeonPigeonCodecReader : FlutterStandardReader
 @end
 @implementation nullPigeonPigeonCodecReader
@@ -693,6 +724,8 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
       return [IsoRange fromList:[self readValue]];
     case 151: 
       return [FocusDistanceRange fromList:[self readValue]];
+    case 152: 
+      return [ZoomRange fromList:[self readValue]];
     default:
       return [super readValueOfType:type];
   }
@@ -780,6 +813,9 @@ static id GetNullableObjectAtIndex(NSArray<id> *array, NSInteger key) {
     [self writeValue:[value toList]];
   } else if ([value isKindOfClass:[FocusDistanceRange class]]) {
     [self writeByte:151];
+    [self writeValue:[value toList]];
+  } else if ([value isKindOfClass:[ZoomRange class]]) {
+    [self writeByte:152];
     [self writeValue:[value toList]];
   } else {
     [super writeValue:value];
@@ -906,7 +942,7 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
         binaryMessenger:binaryMessenger
         codec:nullGetPigeonCodec()];
     if (api) {
-      NSCAssert([api respondsToSelector:@selector(setupCameraSensors:aspectRatio:zoom:mirrorFrontCamera:enablePhysicalButton:flashMode:captureMode:enableImageStream:exifPreferences:videoOptions:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setupCameraSensors:aspectRatio:zoom:mirrorFrontCamera:enablePhysicalButton:flashMode:captureMode:enableImageStream:exifPreferences:videoOptions:completion:)", api);
+      NSCAssert([api respondsToSelector:@selector(setupCameraSensors:aspectRatio:zoom:mirrorFrontCamera:enablePhysicalButton:flashMode:captureMode:enableImageStream:exifPreferences:videoOptions:absoluteZoom:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setupCameraSensors:aspectRatio:zoom:mirrorFrontCamera:enablePhysicalButton:flashMode:captureMode:enableImageStream:exifPreferences:videoOptions:absoluteZoom:completion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         NSArray<id> *args = message;
         NSArray<PigeonSensor *> *arg_sensors = GetNullableObjectAtIndex(args, 0);
@@ -919,7 +955,8 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
         BOOL arg_enableImageStream = [GetNullableObjectAtIndex(args, 7) boolValue];
         ExifPreferences *arg_exifPreferences = GetNullableObjectAtIndex(args, 8);
         VideoOptions *arg_videoOptions = GetNullableObjectAtIndex(args, 9);
-        [api setupCameraSensors:arg_sensors aspectRatio:arg_aspectRatio zoom:arg_zoom mirrorFrontCamera:arg_mirrorFrontCamera enablePhysicalButton:arg_enablePhysicalButton flashMode:arg_flashMode captureMode:arg_captureMode enableImageStream:arg_enableImageStream exifPreferences:arg_exifPreferences videoOptions:arg_videoOptions completion:^(NSNumber *_Nullable output, FlutterError *_Nullable error) {
+        NSNumber *arg_absoluteZoom = GetNullableObjectAtIndex(args, 10);
+        [api setupCameraSensors:arg_sensors aspectRatio:arg_aspectRatio zoom:arg_zoom mirrorFrontCamera:arg_mirrorFrontCamera enablePhysicalButton:arg_enablePhysicalButton flashMode:arg_flashMode captureMode:arg_captureMode enableImageStream:arg_enableImageStream exifPreferences:arg_exifPreferences videoOptions:arg_videoOptions absoluteZoom:arg_absoluteZoom completion:^(NSNumber *_Nullable output, FlutterError *_Nullable error) {
           callback(wrapResult(output, error));
         }];
       }];
@@ -1805,6 +1842,47 @@ void SetUpCameraInterfaceWithSuffix(id<FlutterBinaryMessenger> binaryMessenger, 
       NSCAssert([api respondsToSelector:@selector(resetFocusToAutoWithCompletion:)], @"CameraInterface api (%@) doesn't respond to @selector(resetFocusToAutoWithCompletion:)", api);
       [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
         [api resetFocusToAutoWithCompletion:^(FlutterError *_Nullable error) {
+          callback(wrapResult(nil, error));
+        }];
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  /// Returns the absolute zoom range supported by the current camera.
+  /// The values represent real zoom ratios (e.g., 1.0 is no zoom, 2.0 is 2x).
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.getZoomRange", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(getZoomRangeWithError:)], @"CameraInterface api (%@) doesn't respond to @selector(getZoomRangeWithError:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        FlutterError *error;
+        ZoomRange *output = [api getZoomRangeWithError:&error];
+        callback(wrapResult(output, error));
+      }];
+    } else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  /// Sets an absolute zoom ratio.
+  /// [zoom] must be within the range returned by [getZoomRange].
+  /// Throws an exception if the camera is not initialised or value out of range.
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:[NSString stringWithFormat:@"%@%@", @"dev.flutter.pigeon.camerawesome.CameraInterface.setZoomAbsolute", messageChannelSuffix]
+        binaryMessenger:binaryMessenger
+        codec:nullGetPigeonCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setZoomAbsoluteZoom:completion:)], @"CameraInterface api (%@) doesn't respond to @selector(setZoomAbsoluteZoom:completion:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray<id> *args = message;
+        double arg_zoom = [GetNullableObjectAtIndex(args, 0) doubleValue];
+        [api setZoomAbsoluteZoom:arg_zoom completion:^(FlutterError *_Nullable error) {
           callback(wrapResult(nil, error));
         }];
       }];
