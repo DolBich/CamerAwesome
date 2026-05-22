@@ -137,8 +137,8 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         enableImageStream: Boolean,
         exifPreferences: ExifPreferences,
         videoOptions: VideoOptions?,
-        callback: (Result<Boolean>) -> Unit,
         absoluteZoom: Double?,
+        callback: (Result<Boolean>) -> Unit,
     ) {
         if (enablePhysicalButton) {
             val serviceIntent = Intent(activity!!, PlayerService::class.java)
