@@ -63,6 +63,8 @@ data class CameraXState(
 
     var manualFocusDistance: Float? = null,
     var defaultAfMode: Int? = null,
+
+    var manualZoomRatio: Float? = null
 ) : EventChannel.StreamHandler, SensorOrientation {
 
     var imageAnalysisBuilder: ImageAnalysisBuilder? = null
@@ -204,357 +206,394 @@ data class CameraXState(
 
             /// Applying manual exposure time for each camera if needed
             concurrentCamera!!.cameras.forEach { applyManualSettingsIfNeeded(it) }
-        } else {
-            val useCaseGroupBuilder = UseCaseGroup.Builder()
-            // Handle single camera
-            val cameraSelector =
-                if (sensors.first().position == PigeonSensorPosition.FRONT) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
-            // Preview
-            if (currentCaptureMode != CaptureModes.ANALYSIS_ONLY) {
-                previews!!.add(
-                    if (aspectRatio != null) {
-                        Preview.Builder()
-                            .setResolutionSelector(resolutionSelector)
-                            .build()
-                    } else {
-                        Preview.Builder().build()
-                    }
-                )
 
-                previews!!.first().setSurfaceProvider(
-                    surfaceProvider(executor(activity), sensors.first().deviceId ?: "0")
-                )
-                useCaseGroupBuilder.addUseCase(previews!!.first())
-            }
-
-            if (currentCaptureMode == CaptureModes.PHOTO) {
-                val imageCapture = ImageCapture.Builder()
-//                .setJpegQuality(100)
-                    .apply {
-                        //photoSize?.let { setTargetResolution(it) }
-                        if (rational.denominator != rational.numerator) {
-                            setResolutionSelector(resolutionSelector)
-                        }
-                        setFlashMode(
-                            when (flashMode) {
-                                FlashMode.ALWAYS, FlashMode.ON -> ImageCapture.FLASH_MODE_ON
-                                FlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
-                                else -> ImageCapture.FLASH_MODE_OFF
-                            }
-                        )
-                    }.build()
-                useCaseGroupBuilder.addUseCase(imageCapture)
-                imageCaptures.add(imageCapture)
-            } else if (currentCaptureMode == CaptureModes.VIDEO) {
-                val videoCapture = buildVideoCapture(videoOptions)
-                useCaseGroupBuilder.addUseCase(videoCapture)
-                videoCaptures[sensors.first()] = videoCapture
-            }
-
-
-            val addAnalysisUseCase = enableImageStream && imageAnalysisBuilder != null
-            val cameraLevel = CameraCapabilities.getCameraLevel(
-                cameraSelector, cameraProvider
-            )
-            cameraProvider.unbindAll()
-            if (addAnalysisUseCase) {
-                if (currentCaptureMode == CaptureModes.VIDEO && cameraLevel < CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3) {
-                    Log.w(
-                        CamerawesomePlugin.TAG,
-                        "Trying to bind too many use cases for this device (level $cameraLevel), ignoring image analysis"
-                    )
-                } else {
-                    imageAnalysis = imageAnalysisBuilder!!.build()
-                    useCaseGroupBuilder.addUseCase(imageAnalysis!!)
-
-                }
+            manualZoomRatio?.let { zoomRatio ->
+                (concurrentCamera?.cameras?.firstOrNull() ?: previewCamera)
+                    ?.cameraControl?.setZoomRatio(zoomRatio)
             } else {
-                imageAnalysis = null
-            }
-            // TODO Orientation might be wrong, to be verified
-            useCaseGroupBuilder.setViewPort(ViewPort.Builder(rational, Surface.ROTATION_0).build())
-                .build()
-
-            concurrentCamera = null
-            previewCamera = cameraProvider.bindToLifecycle(
-                activity as LifecycleOwner,
-                cameraSelector,
-                useCaseGroupBuilder.build(),
-            )
-            previewCamera!!.cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
-
-            /// Applying manual exposure time if needed
-            applyManualSettingsIfNeeded(previewCamera!!)
-        }
-    }
-
-    private fun getResolutionSelector(aspectRatio: Int): ResolutionSelector {
-        val resolutionStrategy = when (aspectRatio) {
-            AspectRatio.RATIO_16_9 -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
-            AspectRatio.RATIO_4_3 -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
-            else -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
-        }
-
-        return ResolutionSelector.Builder()
-            .setAspectRatioStrategy(
-                when (aspectRatio) {
-                    AspectRatio.RATIO_16_9 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-                    AspectRatio.RATIO_4_3 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-                    else -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-                }
-            )
-            .setResolutionStrategy(resolutionStrategy)
-            .build()
-    }
-
-    private fun buildVideoCapture(videoOptions: AndroidVideoOptions?): VideoCapture<Recorder> {
-        val recorderBuilder = Recorder.Builder()
-        // Aspect ratio is handled by the setViewPort on the UseCaseGroup
-        if (videoRecordingQuality != null) {
-            val quality = when (videoRecordingQuality) {
-                VideoRecordingQuality.LOWEST -> Quality.LOWEST
-                VideoRecordingQuality.SD -> Quality.SD
-                VideoRecordingQuality.HD -> Quality.HD
-                VideoRecordingQuality.FHD -> Quality.FHD
-                VideoRecordingQuality.UHD -> Quality.UHD
-                else -> Quality.HIGHEST
-            }
-            recorderBuilder.setQualitySelector(
-                QualitySelector.from(
-                    quality,
-                    if (videoOptions?.fallbackStrategy == QualityFallbackStrategy.LOWER) FallbackStrategy.lowerQualityOrHigherThan(
-                        quality
+                val useCaseGroupBuilder = UseCaseGroup.Builder()
+                // Handle single camera
+                val cameraSelector =
+                    if (sensors.first().position == PigeonSensorPosition.FRONT) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+                // Preview
+                if (currentCaptureMode != CaptureModes.ANALYSIS_ONLY) {
+                    previews!!.add(
+                        if (aspectRatio != null) {
+                            Preview.Builder()
+                                .setResolutionSelector(resolutionSelector)
+                                .build()
+                        } else {
+                            Preview.Builder().build()
+                        }
                     )
-                    else FallbackStrategy.higherQualityOrLowerThan(quality)
+
+                    previews!!.first().setSurfaceProvider(
+                        surfaceProvider(executor(activity), sensors.first().deviceId ?: "0")
+                    )
+                    useCaseGroupBuilder.addUseCase(previews!!.first())
+                }
+
+                if (currentCaptureMode == CaptureModes.PHOTO) {
+                    val imageCapture = ImageCapture.Builder()
+//                .setJpegQuality(100)
+                        .apply {
+                            //photoSize?.let { setTargetResolution(it) }
+                            if (rational.denominator != rational.numerator) {
+                                setResolutionSelector(resolutionSelector)
+                            }
+                            setFlashMode(
+                                when (flashMode) {
+                                    FlashMode.ALWAYS, FlashMode.ON -> ImageCapture.FLASH_MODE_ON
+                                    FlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
+                                    else -> ImageCapture.FLASH_MODE_OFF
+                                }
+                            )
+                        }.build()
+                    useCaseGroupBuilder.addUseCase(imageCapture)
+                    imageCaptures.add(imageCapture)
+                } else if (currentCaptureMode == CaptureModes.VIDEO) {
+                    val videoCapture = buildVideoCapture(videoOptions)
+                    useCaseGroupBuilder.addUseCase(videoCapture)
+                    videoCaptures[sensors.first()] = videoCapture
+                }
+
+
+                val addAnalysisUseCase = enableImageStream && imageAnalysisBuilder != null
+                val cameraLevel = CameraCapabilities.getCameraLevel(
+                    cameraSelector, cameraProvider
                 )
-            )
-        }
-        if (videoOptions?.bitrate != null) {
-            recorderBuilder.setTargetVideoEncodingBitRate(videoOptions.bitrate.toInt())
-        }
-        val recorder = recorderBuilder.build()
-        return VideoCapture.Builder<Recorder>(recorder)
-            .setMirrorMode(if (mirrorFrontCamera) MirrorMode.MIRROR_MODE_ON_FRONT_ONLY else MirrorMode.MIRROR_MODE_OFF)
-            .build()
-    }
+                cameraProvider.unbindAll()
+                if (addAnalysisUseCase) {
+                    if (currentCaptureMode == CaptureModes.VIDEO && cameraLevel < CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3) {
+                        Log.w(
+                            CamerawesomePlugin.TAG,
+                            "Trying to bind too many use cases for this device (level $cameraLevel), ignoring image analysis"
+                        )
+                    } else {
+                        imageAnalysis = imageAnalysisBuilder!!.build()
+                        useCaseGroupBuilder.addUseCase(imageAnalysis!!)
 
-    @SuppressLint("RestrictedApi")
-    private fun surfaceProvider(executor: Executor, cameraId: String): Preview.SurfaceProvider {
+                    }
+                } else {
+                    imageAnalysis = null
+                }
+                // TODO Orientation might be wrong, to be verified
+                useCaseGroupBuilder.setViewPort(
+                    ViewPort.Builder(rational, Surface.ROTATION_0).build()
+                )
+                    .build()
+
+                concurrentCamera = null
+                previewCamera = cameraProvider.bindToLifecycle(
+                    activity as LifecycleOwner,
+                    cameraSelector,
+                    useCaseGroupBuilder.build(),
+                )
+                previewCamera!!.cameraControl.enableTorch(flashMode == FlashMode.ALWAYS)
+
+                /// Applying manual exposure time if needed
+                applyManualSettingsIfNeeded(previewCamera!!)
+
+                manualZoomRatio?.let { zoomRatio ->
+                    (concurrentCamera?.cameras?.firstOrNull() ?: previewCamera)
+                        ?.cameraControl?.setZoomRatio(zoomRatio)
+                }
+            }
+
+            private fun getResolutionSelector(aspectRatio: Int): ResolutionSelector {
+                val resolutionStrategy = when (aspectRatio) {
+                    AspectRatio.RATIO_16_9 -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+                    AspectRatio.RATIO_4_3 -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+                    else -> ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+                }
+
+                return ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        when (aspectRatio) {
+                            AspectRatio.RATIO_16_9 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+                            AspectRatio.RATIO_4_3 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+                            else -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+                        }
+                    )
+                    .setResolutionStrategy(resolutionStrategy)
+                    .build()
+            }
+
+            private fun buildVideoCapture(videoOptions: AndroidVideoOptions?): VideoCapture<Recorder> {
+                val recorderBuilder = Recorder.Builder()
+                // Aspect ratio is handled by the setViewPort on the UseCaseGroup
+                if (videoRecordingQuality != null) {
+                    val quality = when (videoRecordingQuality) {
+                        VideoRecordingQuality.LOWEST -> Quality.LOWEST
+                        VideoRecordingQuality.SD -> Quality.SD
+                        VideoRecordingQuality.HD -> Quality.HD
+                        VideoRecordingQuality.FHD -> Quality.FHD
+                        VideoRecordingQuality.UHD -> Quality.UHD
+                        else -> Quality.HIGHEST
+                    }
+                    recorderBuilder.setQualitySelector(
+                        QualitySelector.from(
+                            quality,
+                            if (videoOptions?.fallbackStrategy == QualityFallbackStrategy.LOWER) FallbackStrategy.lowerQualityOrHigherThan(
+                                quality
+                            )
+                            else FallbackStrategy.higherQualityOrLowerThan(quality)
+                        )
+                    )
+                }
+                if (videoOptions?.bitrate != null) {
+                    recorderBuilder.setTargetVideoEncodingBitRate(videoOptions.bitrate.toInt())
+                }
+                val recorder = recorderBuilder.build()
+                return VideoCapture.Builder<Recorder>(recorder)
+                    .setMirrorMode(if (mirrorFrontCamera) MirrorMode.MIRROR_MODE_ON_FRONT_ONLY else MirrorMode.MIRROR_MODE_OFF)
+                    .build()
+            }
+
+            @SuppressLint("RestrictedApi")
+            private fun surfaceProvider(
+                executor: Executor,
+                cameraId: String
+            ): Preview.SurfaceProvider {
 //        Log.d("SurfaceProviderCamX", "Creating surface provider for $cameraId")
-        return Preview.SurfaceProvider { request: SurfaceRequest ->
-            val resolution = request.resolution
-            //Log.d("CameraX", "surfaceProvider -> Preview size: width=${resolution.width}, height=${resolution.height}")
-            val texture = textureEntries[cameraId]!!.surfaceTexture()
-            texture.setDefaultBufferSize(resolution.width, resolution.height)
-            val surface = Surface(texture)
-            request.provideSurface(surface, executor) {
+                return Preview.SurfaceProvider { request: SurfaceRequest ->
+                    val resolution = request.resolution
+                    //Log.d("CameraX", "surfaceProvider -> Preview size: width=${resolution.width}, height=${resolution.height}")
+                    val texture = textureEntries[cameraId]!!.surfaceTexture()
+                    texture.setDefaultBufferSize(resolution.width, resolution.height)
+                    val surface = Surface(texture)
+                    request.provideSurface(surface, executor) {
 //                Log.d("CameraX", "Surface request result: ${it.resultCode}")
-                surface.release()
-            }
-        }
-    }
-
-    /**
-     * Applies the current exposure settings (exposure time and ISO) to the given camera.
-     * If at least one manual setting is present, AE is disabled and the available values are set.
-     * If none are present, AE is enabled in automatic mode.
-     */
-    @ExperimentalCamera2Interop
-    fun applyExposure(camera: Camera) {
-        val builder = CaptureRequestOptions.Builder()
-        if (manualExposureTimeNs != null || manualIso != null) {
-            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
-            manualExposureTimeNs?.let { builder.setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, it) }
-            manualIso?.let { builder.setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, it) }
-        } else {
-            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-        }
-        Camera2CameraControl.from(camera.cameraControl).setCaptureRequestOptions(builder.build())
-    }
-
-    /**
-     * Applies the current focus settings to the given camera.
-     * If a manual focus distance is set, AF is disabled and that distance is used.
-     * Otherwise, enables auto-focus with a suitable default mode.
-     */
-    @ExperimentalCamera2Interop
-    fun applyFocus(camera: Camera) {
-        val builder = CaptureRequestOptions.Builder()
-        val distance = manualFocusDistance  // локальная копия
-        if (distance != null) {
-            // Manual focus: disable AF and set the distance
-            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
-            builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, distance)
-        } else {
-            // Auto focus: use the stored default AF mode.
-            // Initialize the default mode on first call if not already set.
-            if (defaultAfMode == null) {
-                selectDefaultAfMode(camera)
-            }
-            builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, defaultAfMode!!)
-        }
-        Camera2CameraControl.from(camera.cameraControl).setCaptureRequestOptions(builder.build())
-    }
-
-    /**
-     * Selects a reasonable default auto-focus mode from the camera's available modes.
-     * This is used when no manual focus distance is set and we need to switch back to auto-focus.
-     *
-     * Note: Currently we don't have an API to retrieve the previously active AF mode,
-     * so we pick a sensible mode (CONTINUOUS_PICTURE if available, otherwise AUTO).
-     * This can be improved later if we store the actual mode used before entering manual focus.
-     */
-    fun selectDefaultAfMode(camera: Camera) {
-        val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-        val availableAfModes = camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
-        defaultAfMode = when {
-            availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE) == true ->
-                CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE
-            availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_AUTO) == true ->
-                CameraCharacteristics.CONTROL_AF_MODE_AUTO
-            else -> {
-                // Fallback to manual mode, though this is not ideal.
-                CameraCharacteristics.CONTROL_AF_MODE_OFF
-            }
-        }
-    }
-
-    /**
-     * Applies all manual settings (exposure and focus) to the camera.
-     * Used during lifecycle updates to restore the state after camera reconfiguration.
-     */
-    @ExperimentalCamera2Interop
-    internal fun applyManualSettingsIfNeeded(camera: Camera) {
-        applyExposure(camera)
-        applyFocus(camera)
-    }
-
-    fun setLinearZoom(zoom: Float) {
-        mainCameraControl.setLinearZoom(zoom)
-    }
-
-    fun startFocusAndMetering(autoFocusAction: FocusMeteringAction) {
-        mainCameraControl.startFocusAndMetering(autoFocusAction)
-    }
-
-    fun setCaptureMode(captureMode: CaptureModes) {
-        currentCaptureMode = captureMode
-        when (currentCaptureMode) {
-            CaptureModes.PHOTO -> {
-                // Release video related stuff
-                videoCaptures.clear()
-                recordings?.forEach { it.close() }
-                recordings = null
-
-            }
-
-            CaptureModes.VIDEO -> {
-                // Release photo related stuff
-                imageCaptures.clear()
-            }
-
-            else -> {
-                // Preview and analysis only modes
-
-                // Release video related stuff
-                videoCaptures.clear()
-                recordings?.forEach { it.close() }
-                recordings = null
-
-                // Release photo related stuff
-                imageCaptures.clear()
-            }
-        }
-    }
-
-    @SuppressLint("RestrictedApi", "UnsafeOptInUsageError")
-    fun previewSizes(): List<Size> {
-        val characteristics = CameraCharacteristicsCompat.toCameraCharacteristicsCompat(
-            Camera2CameraInfo.extractCameraCharacteristics(mainCameraInfos),
-            Camera2CameraInfo.from(mainCameraInfos).cameraId
-        )
-        return CamcorderProfileResolutionQuirk(characteristics).supportedResolutions
-    }
-
-    fun qualityAvailableSizes(): List<String> {
-        val supportedQualities = QualitySelector.getSupportedQualities(mainCameraInfos)
-        return supportedQualities.map {
-            when (it) {
-                Quality.UHD -> {
-                    "UHD"
-                }
-
-                Quality.HIGHEST -> {
-                    "HIGHEST"
-                }
-
-                Quality.FHD -> {
-                    "FHD"
-                }
-
-                Quality.HD -> {
-                    "HD"
-                }
-
-                Quality.LOWEST -> {
-                    "LOWEST"
-                }
-
-                Quality.SD -> {
-                    "SD"
-                }
-
-                else -> {
-                    "unknown"
+                        surface.release()
+                    }
                 }
             }
-        }
-    }
 
-    fun stop() {
-        cameraProvider.unbindAll()
-    }
-
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        val previous = imageAnalysisBuilder?.previewStreamSink
-        imageAnalysisBuilder?.previewStreamSink = events
-        if (previous == null && events != null) {
-            onStreamReady(this)
-        }
-    }
-
-    override fun onCancel(arguments: Any?) {
-        this.imageAnalysisBuilder?.previewStreamSink?.endOfStream()
-        this.imageAnalysisBuilder?.previewStreamSink = null
-    }
-
-    override fun onOrientationChanged(orientation: Int) {
-        imageAnalysis?.targetRotation = when (orientation) {
-            in 225 until 315 -> {
-                Surface.ROTATION_90
+            /**
+             * Applies the current exposure settings (exposure time and ISO) to the given camera.
+             * If at least one manual setting is present, AE is disabled and the available values are set.
+             * If none are present, AE is enabled in automatic mode.
+             */
+            @ExperimentalCamera2Interop
+            fun applyExposure(camera: Camera) {
+                val builder = CaptureRequestOptions.Builder()
+                if (manualExposureTimeNs != null || manualIso != null) {
+                    builder.setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_OFF
+                    )
+                    manualExposureTimeNs?.let {
+                        builder.setCaptureRequestOption(
+                            CaptureRequest.SENSOR_EXPOSURE_TIME,
+                            it
+                        )
+                    }
+                    manualIso?.let {
+                        builder.setCaptureRequestOption(
+                            CaptureRequest.SENSOR_SENSITIVITY,
+                            it
+                        )
+                    }
+                } else {
+                    builder.setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_MODE,
+                        CaptureRequest.CONTROL_AE_MODE_ON
+                    )
+                }
+                Camera2CameraControl.from(camera.cameraControl)
+                    .setCaptureRequestOptions(builder.build())
             }
 
-            in 135 until 225 -> {
-                Surface.ROTATION_180
+            /**
+             * Applies the current focus settings to the given camera.
+             * If a manual focus distance is set, AF is disabled and that distance is used.
+             * Otherwise, enables auto-focus with a suitable default mode.
+             */
+            @ExperimentalCamera2Interop
+            fun applyFocus(camera: Camera) {
+                val builder = CaptureRequestOptions.Builder()
+                val distance = manualFocusDistance  // локальная копия
+                if (distance != null) {
+                    // Manual focus: disable AF and set the distance
+                    builder.setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AF_MODE,
+                        CaptureRequest.CONTROL_AF_MODE_OFF
+                    )
+                    builder.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, distance)
+                } else {
+                    // Auto focus: use the stored default AF mode.
+                    // Initialize the default mode on first call if not already set.
+                    if (defaultAfMode == null) {
+                        selectDefaultAfMode(camera)
+                    }
+                    builder.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, defaultAfMode!!)
+                }
+                Camera2CameraControl.from(camera.cameraControl)
+                    .setCaptureRequestOptions(builder.build())
             }
 
-            in 45 until 135 -> {
-                Surface.ROTATION_270
+            /**
+             * Selects a reasonable default auto-focus mode from the camera's available modes.
+             * This is used when no manual focus distance is set and we need to switch back to auto-focus.
+             *
+             * Note: Currently we don't have an API to retrieve the previously active AF mode,
+             * so we pick a sensible mode (CONTINUOUS_PICTURE if available, otherwise AUTO).
+             * This can be improved later if we store the actual mode used before entering manual focus.
+             */
+            fun selectDefaultAfMode(camera: Camera) {
+                val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+                val availableAfModes =
+                    camera2Info.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) as IntArray?
+                defaultAfMode = when {
+                    availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE) == true ->
+                        CameraCharacteristics.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+
+                    availableAfModes?.contains(CameraCharacteristics.CONTROL_AF_MODE_AUTO) == true ->
+                        CameraCharacteristics.CONTROL_AF_MODE_AUTO
+
+                    else -> {
+                        // Fallback to manual mode, though this is not ideal.
+                        CameraCharacteristics.CONTROL_AF_MODE_OFF
+                    }
+                }
             }
 
-            else -> {
-                Surface.ROTATION_0
+            /**
+             * Applies all manual settings (exposure and focus) to the camera.
+             * Used during lifecycle updates to restore the state after camera reconfiguration.
+             */
+            @ExperimentalCamera2Interop
+            internal fun applyManualSettingsIfNeeded(camera: Camera) {
+                applyExposure(camera)
+                applyFocus(camera)
+            }
+
+            fun setLinearZoom(zoom: Float) {
+                mainCameraControl.setLinearZoom(zoom)
+            }
+
+            fun startFocusAndMetering(autoFocusAction: FocusMeteringAction) {
+                mainCameraControl.startFocusAndMetering(autoFocusAction)
+            }
+
+            fun setCaptureMode(captureMode: CaptureModes) {
+                currentCaptureMode = captureMode
+                when (currentCaptureMode) {
+                    CaptureModes.PHOTO -> {
+                        // Release video related stuff
+                        videoCaptures.clear()
+                        recordings?.forEach { it.close() }
+                        recordings = null
+
+                    }
+
+                    CaptureModes.VIDEO -> {
+                        // Release photo related stuff
+                        imageCaptures.clear()
+                    }
+
+                    else -> {
+                        // Preview and analysis only modes
+
+                        // Release video related stuff
+                        videoCaptures.clear()
+                        recordings?.forEach { it.close() }
+                        recordings = null
+
+                        // Release photo related stuff
+                        imageCaptures.clear()
+                    }
+                }
+            }
+
+            @SuppressLint("RestrictedApi", "UnsafeOptInUsageError")
+            fun previewSizes(): List<Size> {
+                val characteristics = CameraCharacteristicsCompat.toCameraCharacteristicsCompat(
+                    Camera2CameraInfo.extractCameraCharacteristics(mainCameraInfos),
+                    Camera2CameraInfo.from(mainCameraInfos).cameraId
+                )
+                return CamcorderProfileResolutionQuirk(characteristics).supportedResolutions
+            }
+
+            fun qualityAvailableSizes(): List<String> {
+                val supportedQualities = QualitySelector.getSupportedQualities(mainCameraInfos)
+                return supportedQualities.map {
+                    when (it) {
+                        Quality.UHD -> {
+                            "UHD"
+                        }
+
+                        Quality.HIGHEST -> {
+                            "HIGHEST"
+                        }
+
+                        Quality.FHD -> {
+                            "FHD"
+                        }
+
+                        Quality.HD -> {
+                            "HD"
+                        }
+
+                        Quality.LOWEST -> {
+                            "LOWEST"
+                        }
+
+                        Quality.SD -> {
+                            "SD"
+                        }
+
+                        else -> {
+                            "unknown"
+                        }
+                    }
+                }
+            }
+
+            fun stop() {
+                cameraProvider.unbindAll()
+            }
+
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                val previous = imageAnalysisBuilder?.previewStreamSink
+                imageAnalysisBuilder?.previewStreamSink = events
+                if (previous == null && events != null) {
+                    onStreamReady(this)
+                }
+            }
+
+            override fun onCancel(arguments: Any?) {
+                this.imageAnalysisBuilder?.previewStreamSink?.endOfStream()
+                this.imageAnalysisBuilder?.previewStreamSink = null
+            }
+
+            override fun onOrientationChanged(orientation: Int) {
+                imageAnalysis?.targetRotation = when (orientation) {
+                    in 225 until 315 -> {
+                        Surface.ROTATION_90
+                    }
+
+                    in 135 until 225 -> {
+                        Surface.ROTATION_180
+                    }
+
+                    in 45 until 135 -> {
+                        Surface.ROTATION_270
+                    }
+
+                    else -> {
+                        Surface.ROTATION_0
+                    }
+                }
+            }
+
+            fun updateAspectRatio(newAspectRatio: String) {
+                // In CameraX, aspect ratio is an Int. RATIO_4_3 = 0 (default), RATIO_16_9 = 1
+                aspectRatio = if (newAspectRatio == "RATIO_16_9") 1 else 0
+                rational = when (newAspectRatio) {
+                    "RATIO_16_9" -> Rational(9, 16)
+                    "RATIO_1_1" -> Rational(1, 1)
+                    else -> Rational(3, 4)
+                }
             }
         }
-    }
-
-    fun updateAspectRatio(newAspectRatio: String) {
-        // In CameraX, aspect ratio is an Int. RATIO_4_3 = 0 (default), RATIO_16_9 = 1
-        aspectRatio = if (newAspectRatio == "RATIO_16_9") 1 else 0
-        rational = when (newAspectRatio) {
-            "RATIO_16_9" -> Rational(9, 16)
-            "RATIO_1_1" -> Rational(1, 1)
-            else -> Rational(3, 4)
-        }
-    }
-}
