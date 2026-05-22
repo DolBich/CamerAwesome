@@ -53,10 +53,18 @@ class SensorConfig {
   Stream<double?> get focusDistance$ => _focusDistanceController.stream;
   double? get focus => _focusDistanceController.value;
 
+  /// Stream of absolute zoom in 1.0x, 2.0x etc.
+  late BehaviorSubject<double?> _absoluteZoomController;
+  late Stream<double?> absoluteZoom$;
+  double? absoluteZoom;
+  /// Current absolute zoom value (or null if not set).
+  double? get currentAbsoluteZoom => _absoluteZoomController.value;
+
   SensorConfig.single({
     Sensor? sensor,
     FlashMode flashMode = FlashMode.none,
     double zoom = 0.0,
+    double? absoluteZoom,
     CameraAspectRatios aspectRatio = CameraAspectRatios.ratio_4_3,
   }) : this._(
           sensors: [sensor ?? Sensor.position(SensorPosition.back)],
@@ -69,6 +77,7 @@ class SensorConfig {
     required List<Sensor> sensors,
     FlashMode flashMode = FlashMode.none,
     double zoom = 0.0,
+    double? absoluteZoom,
     CameraAspectRatios aspectRatio = CameraAspectRatios.ratio_4_3,
   }) : this._(
           sensors: sensors,
@@ -84,6 +93,9 @@ class SensorConfig {
 
     /// Zoom must be between 0.0 (no zoom) and 1.0 (max zoom)
     double currentZoom = 0.0,
+
+    /// Absolute zoom
+    this.absoluteZoom,
   }) {
     _flashModeController = BehaviorSubject<FlashMode>.seeded(flash);
     flashMode$ = _flashModeController.stream;
@@ -94,6 +106,9 @@ class SensorConfig {
 
     _zoomController = BehaviorSubject<double>.seeded(currentZoom);
     zoom$ = _zoomController.stream;
+
+    _absoluteZoomController = BehaviorSubject<double?>.seeded(absoluteZoom);
+    absoluteZoom$ = _absoluteZoomController.stream;
 
     _aspectRatioController = BehaviorSubject.seeded(aspectRatio);
     aspectRatio$ = _aspectRatioController.stream;
@@ -277,6 +292,19 @@ class SensorConfig {
     return CamerawesomePlugin.resetFocusToAuto();
   }
 
+  /// Returns the absolute zoom range of the current camera.
+  Future<ZoomRange> getZoomRange() {
+    return CamerawesomePlugin.getZoomRange();
+  }
+
+  /// Sets an absolute zoom ratio (e.g., 1.0 = no zoom, 2.0 = 2x).
+  Future<void> setZoomAbsolute(double zoom) async {
+    await CamerawesomePlugin.setZoomAbsolute(zoom);
+    if (!_absoluteZoomController.isClosed) {
+      _absoluteZoomController.add(zoom);
+    }
+  }
+
   void dispose() {
     _brightnessSubscription?.cancel();
     _brightnessController.close();
@@ -287,5 +315,6 @@ class SensorConfig {
     _exposureTimeController.close();
     _isoController.close();
     _focusDistanceController.close();
+    _absoluteZoomController.close();
   }
 }
