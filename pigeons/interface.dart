@@ -368,8 +368,8 @@ abstract class CameraInterface {
     bool enableImageStream,
     ExifPreferences exifPreferences,
     VideoOptions? videoOptions,
-      double? absoluteZoom,
-      );
+    double? absoluteZoom,
+  );
 
   List<String> checkPermissions(List<String> permissions);
 
