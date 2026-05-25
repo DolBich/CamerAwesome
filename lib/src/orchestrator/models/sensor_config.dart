@@ -116,7 +116,7 @@ class SensorConfig {
 
     _absoluteZoomController = BehaviorSubject<double?>.seeded(absoluteZoom);
     /// Because of initialization of cameraState on kotlin side
-    if (absoluteZoom != null) Future.delayed(const Duration(microseconds: 500),() => CamerawesomePlugin.setZoomAbsolute(absoluteZoom));
+    if (absoluteZoom != null) Future.delayed(const Duration(milliseconds: 500),() => CamerawesomePlugin.setZoomAbsolute(absoluteZoom));
     absoluteZoom$ = _absoluteZoomController.stream;
 
     _aspectRatioController = BehaviorSubject.seeded(aspectRatio);
