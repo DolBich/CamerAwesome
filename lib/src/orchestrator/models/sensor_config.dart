@@ -56,7 +56,7 @@ class SensorConfig {
   /// Stream of absolute zoom in 1.0x, 2.0x etc.
   late BehaviorSubject<double?> _absoluteZoomController;
   late Stream<double?> absoluteZoom$;
-  double? absoluteZoom;
+
   /// Current absolute zoom value (or null if not set).
   double? get currentAbsoluteZoom => _absoluteZoomController.value;
 
@@ -95,7 +95,7 @@ class SensorConfig {
     double currentZoom = 0.0,
 
     /// Absolute zoom
-    this.absoluteZoom,
+    double? absoluteZoom,
   }) {
     _flashModeController = BehaviorSubject<FlashMode>.seeded(flash);
     flashMode$ = _flashModeController.stream;
@@ -108,6 +108,7 @@ class SensorConfig {
     zoom$ = _zoomController.stream;
 
     _absoluteZoomController = BehaviorSubject<double?>.seeded(absoluteZoom);
+    if(absoluteZoom != null) CamerawesomePlugin.setZoomAbsolute(absoluteZoom);
     absoluteZoom$ = _absoluteZoomController.stream;
 
     _aspectRatioController = BehaviorSubject.seeded(aspectRatio);
