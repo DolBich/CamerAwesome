@@ -200,7 +200,7 @@ class CamerawesomePlugin {
           enableImageStream,
           exifPreferences,
           videoOptions,
-          sensorConfig.absoluteZoom,
+          sensorConfig.currentAbsoluteZoom,
         )
         .then((value) => true);
   }
