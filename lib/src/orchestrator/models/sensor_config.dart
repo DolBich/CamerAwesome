@@ -41,16 +41,21 @@ class SensorConfig {
 
   late BehaviorSubject<Duration?> _exposureTimeController;
   late Stream<Duration?> exposureTime$;
+
   Duration? get exposureTime => _exposureTimeController.value;
 
   /// Stream of current manual ISO value (null if auto).
   late BehaviorSubject<int?> _isoController;
+
   Stream<int?> get iso$ => _isoController.stream;
+
   int? get iso => _isoController.value;
 
   /// Stream of current manual focus distance in diopters (null if auto).
   late BehaviorSubject<double?> _focusDistanceController;
+
   Stream<double?> get focusDistance$ => _focusDistanceController.stream;
+
   double? get focus => _focusDistanceController.value;
 
   /// Stream of absolute zoom in 1.0x, 2.0x etc.
@@ -71,6 +76,7 @@ class SensorConfig {
           flash: flashMode,
           currentZoom: zoom,
           aspectRatio: aspectRatio,
+          absoluteZoom: absoluteZoom,
         );
 
   SensorConfig.multiple({
@@ -84,6 +90,7 @@ class SensorConfig {
           flash: flashMode,
           currentZoom: zoom,
           aspectRatio: aspectRatio,
+          absoluteZoom: absoluteZoom,
         );
 
   SensorConfig._({
@@ -108,7 +115,7 @@ class SensorConfig {
     zoom$ = _zoomController.stream;
 
     _absoluteZoomController = BehaviorSubject<double?>.seeded(absoluteZoom);
-    if(absoluteZoom != null) CamerawesomePlugin.setZoomAbsolute(absoluteZoom);
+    if (absoluteZoom != null) CamerawesomePlugin.setZoomAbsolute(absoluteZoom);
     absoluteZoom$ = _absoluteZoomController.stream;
 
     _aspectRatioController = BehaviorSubject.seeded(aspectRatio);
@@ -259,7 +266,6 @@ class SensorConfig {
   Future<void> resetExposureToAuto() {
     return CamerawesomePlugin.resetExposureToAuto();
   }
-
 
   /// Checks whether manual focus (distance) control is supported on the current device.
   Future<bool> isManualFocusSupported() {
