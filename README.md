@@ -1,3 +1,35 @@
+## About This Fork
+
+This repository is a fork of
+[Apparence-io/CamerAwesome](https://github.com/Apparence-io/CamerAwesome).
+
+I maintain an Android-focused development branch,
+[`exposure_time_fixed`](../../tree/exposure_time_fixed), with
+custom camera controls implemented on top of CameraX and Camera2.
+
+### Custom Android Changes
+
+The development branch adds:
+
+- Manual exposure time control
+- Manual ISO control
+- Manual focus distance control
+- Absolute zoom ratio control
+- Camera capability and range queries
+- Reset to automatic exposure and focus modes
+- Re-application of manual camera settings after camera rebinding
+
+The custom functionality is exposed through the Flutter API using
+Pigeon and implemented on Android with Kotlin, CameraX and Camera2.
+
+### Architecture
+
+`Flutter API → Pigeon → Kotlin → CameraX / Camera2`
+
+See the [`exposure_time_fixed`](../../tree/exposure_time_fixed) branch for the current implementation.
+
+---
+
 <a href="https://apparence.io">
   <img
     src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/apparence.png"
