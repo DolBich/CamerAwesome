@@ -1,513 +1,189 @@
-<a href="https://apparence.io">
-  <img
-    src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/apparence.png"
-    width="100%"
-  />
-</a>
-<div style="margin-top:40px">
-  <img
-    src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/preview.png"
-    width="100%"
-  />
-  <img
-    src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/features.png"
-    width="100%"
-    style="margin-top:32px"
-  />
-</div>
+# CameraAwesome — Manual Android Camera Controls
 
-<a href="https://apparencekit.dev" style="margin-top:32px">
-  <img
-    src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/flutter_template.png"
-    width="100%"
-    alt="ApparenceKit Flutter template to bootstrap your next app"
-  />
-</a>
+A Flutter camera plugin extension that adds manual Android camera controls for applications that require precise control over image capture.
 
-This plugin is also available as a template in
-[ApparenceKit](https://apparencekit.dev).<br>
+This work was developed as part of a production Flutter project where automatic camera modes were not sufficient for photographing the night sky. After evaluating three Flutter camera libraries, I selected CameraAwesome and extended its existing Flutter-to-Android camera stack with manual exposure, ISO, focus distance, and absolute zoom controls.
 
-<br>
+## Overview
 
-# CamerAwesome
+The original CameraAwesome API provided the camera functionality required by the project, but the application needed direct control over several hardware-level camera parameters.
 
-<div>
-    <a href="https://github.com/Solido/awesome-flutter">
-        <img alt="Awesome Flutter" src="https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=for-the-badge" />
-    </a>
-    <a href="https://github.com/Apparence-io/camera_awesome">
-        <img src="https://img.shields.io/github/stars/Apparence-io/camera_awesome.svg?style=for-the-badge&logo=github&colorB=green&label=Stars" alt="Star on Github">
-    </a>
-    <a href="https://pub.dev/packages/camerawesome">
-        <img src="https://img.shields.io/pub/v/camerawesome.svg?style=for-the-badge&label=Pub" alt="Star on Github">
-    </a>
-</div>
+The goal was to expose those controls through a Flutter-friendly API while keeping device capabilities and hardware limits visible to the application.
 
-[![en](https://img.shields.io/badge/language-english-cyan.svg)](https://github.com/Apparence-io/CamerAwesome/blob/master/README.md)
-[![zh](https://img.shields.io/badge/language-chinese-cyan.svg)](https://github.com/Apparence-io/CamerAwesome/blob/master/README.zh.md)
+The implementation adds support for:
 
-📸 Embedding a camera experience within your own app shouldn't be that hard.
-<br> A flutter plugin to integrate awesome Android / iOS camera experience.<br>
+- manual exposure time;
+- manual ISO;
+- manual focus distance;
+- absolute zoom ratio;
+- capability detection and supported ranges;
+- switching manual exposure/focus back to automatic modes.
 
-<br>
-This package provides you with a fully customizable camera experience that you can use within your app.<br>
-Use our awesome built-in interface or customize it as you want.
+The feature was used in a real application for photographing the night sky and stars on physical Android devices.
 
----
+## Why this required native Android work
 
-<div style="margin-top:16px;margin-bottom:16px">
-  <a href="https://docs.page/Apparence-io/camera_awesome" style="">
-    <img
-      src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/doc.png"
-      width="100%"
-    />
-  </a>
-</div>
+Flutter-level camera APIs were not enough for the required control. The implementation therefore crosses the full Flutter → native boundary and uses Android Camera2 interoperability underneath CameraX.
 
-## Migration guide
-
-If you are migrating from version 1.x.x to 2.x.x, please read the
-[migration guide](https://docs.page/Apparence-io/camera_awesome/migration_guides/from_1_to_2).
-
-## Native features
-
-Here's all native features that cameraAwesome provides to the flutter side.
-
-| Features                                 | Android | iOS |
-| :--------------------------------------- | :-----: | :-: |
-| 🔖 Ask permissions                       |   ✅    | ✅  |
-| 🎥 Record video                          |   ✅    | ✅  |
-| 📹 Multi camera (🚧 BETA)                |   ✅    | ✅  |
-| 🔈 Enable/disable audio                  |   ✅    | ✅  |
-| 🎞 Take photos                            |   ✅    | ✅  |
-| 🌆 Photo live filters                    |   ✅    | ✅  |
-| 🌤 Exposure level                         |   ✅    | ✅  |
-| 📡 Broadcast live image stream           |   ✅    | ✅  |
-| 🧪 Image analysis (barcode scan & more.) |   ✅    | ✅  |
-| 👁 Zoom                                   |   ✅    | ✅  |
-| 📸 Device flash support                  |   ✅    | ✅  |
-| ⌛️ Auto focus                            |   ✅    | ✅  |
-| 📲 Live switching camera                 |   ✅    | ✅  |
-| 😵‍💫 Camera rotation stream              |   ✅    | ✅  |
-| 🤐 Background auto stop                  |   ✅    | ✅  |
-| 🔀 Sensor type switching                 |   ⛔️    | ✅  |
-| 🪞 Enable/disable front camera mirroring |   ✅    | ✅  |
-
----
-
-## 📖&nbsp; Installation and usage
-
-### Add the package in your `pubspec.yaml`
-
-```yaml
-dependencies:
-  camerawesome: ^2.0.0-dev.1
-  ...
+```text
+Flutter API
+    ↓
+SensorConfig / CamerawesomePlugin
+    ↓
+Pigeon API
+    ↓
+Generated Dart / Kotlin bindings
+    ↓
+CameraAwesomeX / CameraXState
+    ↓
+Camera2 interop
+    ↓
+CaptureRequest
 ```
 
-### Platform specific setup
+The existing CameraAwesome architecture was preserved; the new functionality was added through the same layers already used by the plugin.
 
-- **iOS**
+## Key Features
 
-Add these on `ios/Runner/Info.plist`:
+### Manual exposure
 
-```xml
-<key>NSCameraUsageDescription</key>
-<string>Your own description</string>
+The new API can:
 
-<key>NSMicrophoneUsageDescription</key>
-<string>To enable microphone access when recording video</string>
+- check whether manual exposure is supported;
+- retrieve the camera's supported exposure-time range;
+- set an exact exposure time in microseconds;
+- validate the requested value against the hardware range;
+- restore automatic exposure.
 
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>To enable GPS location access for Exif data</string>
+When manual exposure is active, Android auto-exposure is disabled and the requested exposure value is applied through Camera2 capture request options.
+
+### Manual ISO
+
+ISO can be controlled independently through the Flutter API.
+
+The implementation exposes the camera's supported ISO range, validates requested values, and applies ISO through `CaptureRequest.SENSOR_SENSITIVITY` when manual exposure control is available.
+
+### Manual focus distance
+
+The camera can be switched from autofocus to a specific focus distance expressed in diopters.
+
+The implementation:
+
+- checks whether manual focus is supported;
+- exposes the supported focus-distance range;
+- validates requested distances;
+- disables autofocus and applies `LENS_FOCUS_DISTANCE`;
+- restores a suitable autofocus mode when manual focus is disabled.
+
+`0.0` represents infinity focus, while larger values move the focus closer to the camera.
+
+### Absolute zoom
+
+In addition to the existing linear zoom control, the extension exposes absolute zoom ratios such as `1.0x`, `2.0x`, etc.
+
+The API can retrieve the camera's minimum and maximum zoom ratio and validates requested values before applying them.
+
+## API Example
+
+The added functionality is exposed directly through `SensorConfig`:
+
+```dart
+final supported = await sensorConfig.isManualExposureSupported();
+
+if (supported) {
+  final range = await sensorConfig.getExposureTimeRange();
+
+  if (range != null) {
+    await sensorConfig.setExposureTime(
+      Duration(microseconds: range.maxMicroseconds),
+    );
+  }
+}
+
+final isoRange = await sensorConfig.getIsoRange();
+if (isoRange != null) {
+  await sensorConfig.setIso(isoRange.maxIso);
+}
+
+final focusRange = await sensorConfig.getFocusDistanceRange();
+if (focusRange != null) {
+  await sensorConfig.setFocusDistance(focusRange.minDistance);
+}
+
+final zoomRange = await sensorConfig.getZoomRange();
+await sensorConfig.setZoomAbsolute(zoomRange.maxZoom);
 ```
 
-- **Android**
+Manual settings can later be returned to automatic behavior with the corresponding reset methods.
 
-Change the minimum SDK version to 21 (or higher) in `android/app/build.gradle`:
+## Capability & Range Handling
 
-```
-minSdkVersion 21
-```
+The implementation does not assume that every Android camera supports every manual control.
 
-In order to be able to take pictures or record videos, you may need additional
-permissions depending on the Android version and where you want to save them.
-Read more about it in the
-[official documentation](https://developer.android.com/training/data-storage).
+Before applying a setting, the native layer checks the camera characteristics exposed by Camera2 and validates requested values against the device-specific limits.
 
-> `WRITE_EXTERNAL_STORAGE` is not included in the plugin starting with version
-> 1.4.0.
+Examples include:
 
-If you want to record videos with audio, add this permission to your
-`AndroidManifest.xml`:
+- `CONTROL_AE_MODE_OFF` for manual exposure/ISO support;
+- `SENSOR_INFO_EXPOSURE_TIME_RANGE` for exposure limits;
+- `SENSOR_INFO_SENSITIVITY_RANGE` for ISO limits;
+- `CONTROL_AF_MODE_OFF` and `LENS_INFO_MINIMUM_FOCUS_DISTANCE` for manual focus;
+- CameraX `ZoomState` for absolute zoom limits.
 
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="com.example.yourpackage">
-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-  <!-- Other declarations -->
-</manifest>
-```
-
-You may also want to save location of your pictures in exif metadata. In this
-case, add below permissions:
-
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="com.example.yourpackage">
-  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-  <!-- Other declarations -->
-</manifest>
-```
+Unsupported capabilities and out-of-range values are surfaced as errors instead of silently applying an invalid setting.
 
 <details>
-<summary>⚠️ Overriding Android dependencies</summary>
+<summary>Implementation details</summary>
 
-Some of the dependencies used by CamerAwesome can be overriden if you have a
-conflict. Change these variables to define which version you want to use:
+### Exposure state
 
-```gradle
-buildscript {
-  ext.kotlin_version = '1.7.10'
-  ext {
-    // You can override these variables
-    compileSdkVersion = 33
-    minSdkVersion = 24 // 21 minimum
-    playServicesLocationVersion = "20.0.0"
-    exifInterfaceVersion = "1.3.4"
-  }
-  // ...
-}
-```
+Manual exposure time and ISO are stored in `CameraXState`. When at least one manual exposure parameter is active, auto-exposure is disabled and the corresponding Camera2 capture request values are applied.
 
-Only change these variables if you are sure of what you are doing.
+When both values are cleared, auto-exposure is enabled again.
 
-For example, setting the Play Services Location version might help you when you
-have conflicts with other plugins. The below line shows an example of these
-conflicts:
+### Focus state
 
-```
-java.lang.IncompatibleClassChangeError: Found interface com.google.android.gms.location.ActivityRecognitionClient, but class was expected
-```
+Manual focus distance is also stored in `CameraXState`. When a manual distance is set, autofocus is disabled and the lens focus distance is written to the capture request.
+
+When manual focus is reset, the implementation selects a suitable autofocus mode from the modes supported by the camera, preferring continuous picture autofocus when available and otherwise falling back to the standard auto mode.
+
+### Lifecycle / camera reconfiguration
+
+Manual settings are reapplied after camera state changes so that the requested configuration is not lost when the CameraX lifecycle is updated or use cases are recreated.
+
+### Flutter / native bridge
+
+The public Flutter API, Pigeon interface, generated bindings, and Android implementation were updated together so the new controls are available end-to-end rather than being limited to the native layer.
 
 </details>
 
-### Import the package in your Flutter app
+## Real-World Use
 
-```dart
-import 'package:camerawesome/camerawesome_plugin.dart';
-```
+The feature was developed for a production Flutter application that needed to photograph the night sky and stars.
 
----
+The new controls were used directly on physical Android devices during development and validation. The main goal of testing was practical: verify that manually changing exposure, ISO, focus, and zoom produced the expected effect on captured night-sky images.
 
-## 👌 Awesome built-in interface
+The implementation met the application's requirements and was used as part of the project.
 
-Just use our builder. <br> That's all you need to create a complete camera
-experience within your app.
+## Project Context
 
-```dart
-CameraAwesomeBuilder.awesome(
-  saveConfig: SaveConfig.photoAndVideo(),
-  onMediaTap: (mediaCapture) {
-    OpenFile.open(mediaCapture.filePath);
-  },
-),
-```
+This was a work project rather than a standalone pet project.
 
-![CamerAwesome default UI](docs/img/base_awesome_ui.jpg)
+The work started from an investigation of existing Flutter camera libraries. Three libraries were evaluated before choosing CameraAwesome as the base because its architecture was the best fit for the required extension.
 
-This builder can be customized with various settings:
+The custom implementation was developed independently in the `manual-camera-controls` branch. The work was used inside the main application project rather than submitted upstream as a pull request.
 
-- A theme.
-- Builders for each part of the screen.
-- Initial camera setup.
-- Preview positioning.
-- Additional preview decoration.
-- And much more!
+This was also my first hands-on integration with Android Camera2 APIs.
 
-Here is an example:
+## Tech Stack
 
-![Customized UI](docs/img/custom_awesome_ui.jpg)
+- **Flutter / Dart**
+- **Kotlin**
+- **Android CameraX**
+- **Android Camera2 interoperability**
+- **Pigeon** for Flutter ↔ native API bindings
+- **RxDart** for state streams already used by CameraAwesome
 
-Check the
-[full documentation](https://docs.page/Apparence-io/camera_awesome/getting_started/awesome-ui)
-to learn more.
+## Notes
 
----
-
-## 🎨 Creating a custom interface
-
-If the `awesome()` factory is not enough, you can use `custom()` instead.
-
-It provides a `builder` property that lets you create your own camera
-experience. <br>
-
-The camera preview will be visible behind what you will provide to the builder.
-
-```dart
-CameraAwesomeBuilder.custom(
-  saveConfig: SaveConfig.photo(),
-  builder: (state, previewSize, previewRect) {
-    // create your interface here
-  },
-)
-```
-
-> See more in
-> [documentation](https://docs.page/Apparence-io/camera_awesome/getting_started/custom-ui)
-
-### Working with the custom builder
-
-Here is the definition of our builder method.
-
-```dart
-typedef CameraLayoutBuilder = Widget Function(CameraState cameraState, PreviewSize previewSize, Rect previewRect);
-```
-
-<br>
-The only thing you have access to manage the camera is the cameraState.<br>
-Depending on which state is our camera experience you will have access to some different method. <br>
-`previewSize` and `previewRect` might be used to position your UI around or on top of the camera preview.
-<br>
-
-#### How do CamerAwesome states work ?
-
-Using the state you can do anything you need without having to think about the
-camera flow<br><br>
-
-- On app start we are in `PreparingCameraState`<br>
-- Then depending on the initialCaptureMode you set you will be
-  `PhotoCameraState` or `VideoCameraState`<br>
-- Starting a video will push a `VideoRecordingCameraState`<br>
-- Stopping the video will push back the `VideoCameraState`<br>
-  <br> Also if you want to use some specific function you can use the when
-  method so you can write like this.<br>
-
-```dart
-state.when(
-  onPhotoMode: (photoState) => photoState.start(),
-  onVideoMode: (videoState) => videoState.start(),
-  onVideoRecordingMode: (videoState) => videoState.pause(),
-);
-```
-
-> See more in
-> [documentation](https://docs.page/Apparence-io/camera_awesome/getting_started/custom-ui)
-
-<br>
-
----
-
-## 🐝 Listen to picture or video event
-
-Using the onMediaCaptureEvent you can listen to any media capture event and do
-whatever you want with it.
-
-```dart
-onMediaCaptureEvent: (event) {
-    switch ((event.status, event.isPicture, event.isVideo)) {
-        case (MediaCaptureStatus.capturing, true, false):
-            debugPrint('Capturing picture...');
-        case (MediaCaptureStatus.success, true, false):
-            event.captureRequest.when(
-                single: (single) {
-                debugPrint('Picture saved: ${single.file?.path}');
-                },
-                multiple: (multiple) {
-                multiple.fileBySensor.forEach((key, value) {
-                    debugPrint('multiple image taken: $key ${value?.path}');
-                });
-                },
-            );
-        case (MediaCaptureStatus.failure, true, false):
-            debugPrint('Failed to capture picture: ${event.exception}');
-        case (MediaCaptureStatus.capturing, false, true):
-            debugPrint('Capturing video...');
-        case (MediaCaptureStatus.success, false, true):
-            event.captureRequest.when(
-                single: (single) {
-                    debugPrint('Video saved: ${single.file?.path}');
-                },
-                multiple: (multiple) {
-                    multiple.fileBySensor.forEach((key, value) {
-                        debugPrint('multiple video taken: $key ${value?.path}');
-                    });
-                },
-            );
-        case (MediaCaptureStatus.failure, false, true):
-            debugPrint('Failed to capture video: ${event.exception}');
-        default:
-            debugPrint('Unknown event: $event');
-    }
-},
-```
-
----
-
-## 🔬 Analysis mode
-
-Use this to achieve:
-
-- QR-Code scanning.
-- Facial recognition.
-- AI object detection.
-- Realtime video chats.
-- And much more 🤩
-
-![Face AI](docs/img/face_ai.gif)
-
-You can check examples using MLKit inside the `example` directory. The above
-example is from `ai_analysis_faces.dart`. It detects faces and draw their
-contours.
-
-It's also possible to use MLKit to read barcodes:
-
-![Barcode scanning](docs/img/barcode_overlay.gif)
-
-Check `ai_analysis_barcode.dart` and `preview_overlay_example.dart` for examples
-or the
-[documentation](https://docs.page/Apparence-io/camera_awesome/ai_with_mlkit/reading_barcodes).
-
-### How to use it
-
-```dart
-CameraAwesomeBuilder.awesome(
-  saveConfig: SaveConfig.photo(),
-  onImageForAnalysis: analyzeImage,
-  imageAnalysisConfig: AnalysisConfig(
-        // Android specific options
-        androidOptions: const AndroidAnalysisOptions.nv21(
-            // Target width (CameraX will chose the closest resolution to this width)
-            width: 250,
-        ),
-        // Wether to start automatically the analysis (true by default)
-        autoStart: true,
-        // Max frames per second, null for no limit (default)
-        maxFramesPerSecond: 20,
-    ),
-)
-```
-
-> MLkit recommends using nv21 format for Android. <br> bgra8888 is the iOS
-> format For machine learning you don't need full-resolution images (720 or
-> lower should be enough and makes computation easier)
-
-Learn more about the image analysis configuration in the
-[documentation](https://docs.page/Apparence-io/camera_awesome/ai_with_mlkit/image_analysis_configuration)
-.
-
-Check also detailed explanations on how to use MLKit to
-[read barcodes](https://docs.page/Apparence-io/camera_awesome/ai_with_mlkit/reading_barcodes)
-and
-[detect faces](https://docs.page/Apparence-io/camera_awesome/ai_with_mlkit/detecting_faces).
-
-⚠️ On Android, some devices don't support video recording and image analysis at
-the same time.
-
-- If they don't, image analysis will be ignored.
-- You can check if a device has this capability by using
-  `CameraCharacteristics .isVideoRecordingAndImageAnalysisSupported(Sensors.back)`.
-
----
-
-## 🐽 Updating Sensor configuration
-
-Through state you can access to a `SensorConfig` class.
-
-<br>
-
-| Function               | Comment                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| `setZoom`              | change zoom                                                |
-| `setFlashMode`         | change flash between NONE,ON,AUTO,ALWAYS                   |
-| `setBrightness`        | change brightness level manually (better to let this auto) |
-| `setMirrorFrontCamera` | set mirroring for front camera                             |
-
-All of these configurations are listenable through a stream so your UI can
-automatically get updated according to the actual configuration.
-
-<br>
-
-## 🌆 Photo live filters
-
-Apply live filters to your pictures using the built-in interface:
-
-![Built-in live filters](docs/img/filters.gif)
-
-You can also choose to use a specific filter from the start:
-
-```dart
-CameraAwesomeBuilder.awesome(
-  // other params
-  filter: AwesomeFilter.AddictiveRed,
-  availableFilters: ...
-)
-```
-
-Or set the filter programmatically:
-
-```dart
-CameraAwesomeBuilder.custom(
-  builder: (cameraState, previewSize, previewRect) {
-    return cameraState.when(
-      onPreparingCamera: (state) =>
-      const Center(child: CircularProgressIndicator()),
-      onPhotoMode: (state) =>
-          TakePhotoUI(state, onFilterTap: () {
-            state.setFilter(AwesomeFilter.Sierra);
-          }),
-      onVideoMode: (state) => RecordVideoUI(state, recording: false),
-      onVideoRecordingMode: (state) =>
-          RecordVideoUI(state, recording: true),
-    );
-  },
-)
-```
-
-See all available filters in the
-[documentation](https://docs.page/Apparence-io/camera_awesome/widgets/awesome_filters).
-
-> [!TIP] By default the awesome ui setup has a filter list but you can pass an
-> empty list to remove it
-
-## 📷 📷 Concurrent cameras
-
-![Concurrent cameras](docs/img/concurrent_cameras.gif)
-
-> 🚧 Feature in beta 🚧 Any feedback is welcome!
-
-In order to start using CamerAwesome with multiple cameras simulatenously, you
-need to define a `SensorConfig` that uses several sensors. You can use the
-`SensorConfig.multiple()` constructor for this:
-
-```dart
-CameraAwesomeBuilder.awesome(
-    sensorConfig: SensorConfig.multiple(
-        sensors: [
-            Sensor.position(SensorPosition.back),
-            Sensor.position(SensorPosition.front),
-        ],
-        flashMode: FlashMode.auto,
-        aspectRatio: CameraAspectRatios.ratio_16_9,
-    ),
-    // Other params
-)
-```
-
-This feature is not supported by all devices and even when it is, there are
-limitations that you must be aware of.
-
-Check the details in the
-[dedicated documentation](https://docs.page/Apparence-io/camera_awesome/getting_started/multicam).
-
-<br>
-
-<a href="https://apparence.io">
-  <img
-    src="https://raw.githubusercontent.com/Apparence-io/camera_awesome/master/docs/img/apparence.png"
-    width="100%"
-  />
-</a>
+This repository is based on the CameraAwesome Flutter camera plugin. The default branch contains the custom manual-control implementation described above, while the original baseline is preserved in the historical `master` branch.
